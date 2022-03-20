@@ -150,7 +150,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
             # TODO:
             # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
 
-            xy_plane = np.ones((n_pix ** 2, 3))
+            xy_plane = np.ones((n_pix**2, 3))
             return xy_plane
 
         xy_plane = generate_xy_plane(n_pix)
@@ -183,7 +183,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
             n_rotations = rots.shape[0]
             # TODO: map_values interpolation, calculate from map, rots
             xyz_rotated = np.ones_like(xy_plane)
-            size = n_rotations * n_pix ** 2
+            size = n_rotations * n_pix**2
             slices = np.random.normal(size=size)
             slices.reshape(n_rotations, n_pix, n_pix)
             return slices, xyz_rotated
