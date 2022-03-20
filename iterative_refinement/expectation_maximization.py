@@ -1,21 +1,10 @@
 """
-References
-1. Nelson, P. C. (2019). Chapter 12 : Single Particle Reconstruction in Cryo-electron Microscopy. 
-        In Physical Models of Living Systems (pp. 305–325).
-        https://repository.upenn.edu/cgi/viewcontent.cgi?article=1665&context=physics_papers
-2. Scheres, S. H. W. (2012). RELION: Implementation of a Bayesian approach to cryo-EM structure determination. 
-        Journal of Structural Biology, 180(3), 519–530. 
-        http://doi.org/10.1016/j.jsb.2012.09.006
-3. Sigworth, F. J., Doerschuk, P. C., Carazo, J.-M., & Scheres, S. H. W. (2010). 
-        An Introduction to Maximum-Likelihood Methods in Cryo-EM. 
-        In Methods in Enzymology (1st ed., Vol. 482, pp. 263–294). Elsevier Inc. 
-        http://doi.org/10.1016/S0076-6879(10)82011-7
-
 Iterative refinement in Bayesian expection maximization setting.
 """
 
 import numpy as np
-from compSPI.transforms import do_fft, do_ifft # currently only 2D ffts in compSPI.transforms. can use torch.fft for 3d fft and convert back to numpy array
+from compSPI.transforms import do_fft, do_ifft
+# currently only 2D ffts in compSPI.transforms. can use torch.fft for 3d fft and convert back to numpy array
 
 
 def do_iterative_refinement(map_3d_init, particles, ctf_info):
