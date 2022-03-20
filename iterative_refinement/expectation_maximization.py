@@ -11,7 +11,7 @@ References
         In Methods in Enzymology (1st ed., Vol. 482, pp. 263–294). Elsevier Inc. 
         http://doi.org/10.1016/S0076-6879(10)82011-7
 
-Note that functions are defined in place for readability. code should be filled out and refactored for performance
+Iterative refinement in Bayesian expection maximization setting.
 """
 
 import numpy as np
@@ -20,11 +20,11 @@ from compSPI.transforms import do_fft, do_ifft # currently only 2D ffts in compS
 
 def do_iterative_refinement(map_3d_init, particles, ctf_info):
     """
-    Performs interative refimenent in a Bayesean expectation maximization setting,
+    Performs interative refimenent in a Bayesian expectation maximization setting,
     i.e. maximum a posteriori estimation.
 
     Input
-    _________
+    -----
     map_3d_init
         initial estimate
         input map
@@ -35,7 +35,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
 
     
     Returns
-    _________
+    -------
     
     map_3d_final  
         shape (n_pix,n_pix,n_pix)
