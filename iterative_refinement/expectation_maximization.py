@@ -5,6 +5,7 @@ for reconstruction of particles.
 
 import numpy as np
 from compSPI.transforms import do_fft, do_ifft
+from simSPI.simSPI.transfer import eval_ctf
 
 
 def do_iterative_refinement(map_3d_init, particles, ctf_info):
@@ -16,73 +17,76 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
     ----------
     map_3d_init : arr
         Initial particle map.
-        Shape (n_pix,n_pix,n_pix)
+        Shape (n_pix, n_pix, n_pix)
     particles : arr
         Particles to be reconstructed.
-        Shape (n_pix,n_pix)
+        Shape (n_particles, n_pix, n_pix)
+    ctf_info : list of dicts
+        Each dict contains CTF k,v pairs per particle.
+            Shape (n_particles,)
 
     Returns
     -------
     map_3d_update : arr
         Current iteration of map.
         Shape (n_pix, n_pix, n_pix)
-
     map_3d_final : arr
         Final updated map.
-        Shape (n_pix,n_pix,n_pix)
+        Shape (n_pix, n_pix, n_pix)
     half_map_3d_final_1 : arr
-        Shape (n_pix,n_pix,n_pix)
+        Shape (n_pix, n_pix, n_pix)
     half_map_3d_final_2 : arr
-        Shape (n_pix,n_pix,n_pix)
+        Shape (n_pix, n_pix, n_pix)
     fsc_1d : arr
         Final one dimensional fourier shell correlation.
-        Shape (n_pix//2,)
+        Shape (n_pix // 2,)
     """
 
     def do_split(arr):
         """
-        Split distribution of particles into two distinct sets for
-        statistical validation purposes.
+        Split array into two halves along 0th axis.
 
         Parameters
         ----------
         arr : arr
-            Shape (n_pix,n_pix,n_pix)
+            Shape (n_pix, n_pix, n_pix)
 
         Returns
         -------
         arr1 : arr
-            Shape (n_pix // 2,n_pix,n_pix)
+            Shape (n_pix // 2, n_pix, n_pix)
         arr2: arr
-            Shape (n_pix // 2,n_pix,n_pix)
+            Shape (n_pix // 2, n_pix, n_pix)
         """
         idx_half = arr.shape[0] // 2
         arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
-        assert arr_1.shape[0] == arr_2.shape[0]
-        return arr_1, arr_2
 
-    particles_1, particles_2 = do_split(particles)
+        if arr_1.shape[0] != arr_2.shape[0]:
+            arr_2 = arr[idx_half:2*idx_half]
+
+        return arr_1, arr_2
 
     def do_build_ctf(ctf_params):
         """
-        Build 2D array of CTF from contrast transfer
-        function parameters.
+        Build 2D array of evaluated CTFs from inputted
+        CTF parameters for each particle.
 
         Parameters
         ----------
         ctf_params : list of dicts
             Each dict contains CTF k,v pairs per particle.
-            Shape (n_pix,)
+            Shape (n_particles,)
 
         Returns
         -------
         ctfs : arr
-            Shape (n_ctfs,n_pix,n_pix)
+            Shape (n_ctfs, n_pix, n_pix)
         """
         n_ctfs = len(ctf_params)
-        # TODO: see simSPI.transfer
-        # https://github.com/compSPI/simSPI/blob/master/simSPI/transfer.py#L57
-        ctfs = np.ones((n_ctfs, n_pix, n_pix))
+        ctfs = []
+
+        for i in range(n_ctfs):
+            ctfs.append(eval_ctf(**ctf_params[i]))
 
         return ctfs
 
@@ -91,8 +95,9 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
 
     # work in Fourier space. as particles stay in Fourier space the whole time.
     # they are experimental measurements and are fixed in the algorithm
-    particles_f_1 = do_fft(particles_1)
-    particles_f_2 = do_fft(particles_2)
+    particles_1, particles_2 = do_split(particles)
+    particles_f_1 = do_fft(particles_1, d=3)
+    particles_f_2 = do_fft(particles_2, d=3)
 
     n_pix = map_3d_init.shape[0]
 
@@ -100,14 +105,16 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
 
     half_map_3d_r_1, half_map_3d_r_2 = map_3d_init, map_3d_init.copy()
 
-    for iteration in range(max_n_iters):
+    for _ in range(max_n_iters):
 
+        # TODO: implement 3D fft using torch
         half_map_3d_f_1 = do_fft(half_map_3d_r_1, d=3)
         half_map_3d_f_2 = do_fft(half_map_3d_r_2, d=3)
 
         def grid_SO3_uniform(n_rotations):
             """
-            Uniformly gridded SO(3) rotations.
+            Generate a discrete set of uniformly distributed rotations
+            across SO(3).
 
             Parameters
             ----------
@@ -119,12 +126,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
             rots : arr
                 List of rotations.
                 Shape (n_rotations, 3, 3)
-
             """
-            # TODO: sample over the sphere at given granularity.
-            # easy: draw uniform samples of rotations on sphere. lots of code for this all over the internet. quick solution in geomstats
-            # harder: draw samples around some rotation using ProjectedNormal distribution (ask Geoff)
-            # unknown difficulty: make a regular grid of SO(3) at given granularity. Khanh says non-trivial.
             rots = np.ones((n_rotations, 3, 3))
             return rots
 
@@ -165,7 +167,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
             Parameters
             ----------
             map_3d_f : arr
-                Shape (n_pix,n_pix,n_pix)
+                Shape (n_pix, n_pix, n_pix)
             rots : arr
                 List of rotations.
                 Shape (n_rotations, 3, 3)
@@ -183,7 +185,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
             n_rotations = rots.shape[0]
             # TODO: map_values interpolation, calculate from map, rots
             xyz_rotated = np.ones_like(xy_plane)
-            size = n_rotations * n_pix**2
+            size = n_rotations * n_pix ** 2
             slices = np.random.normal(size=size)
             slices.reshape(n_rotations, n_pix, n_pix)
             return slices, xyz_rotated
@@ -193,7 +195,8 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
 
         def do_conv_ctf(slice, ctf):
             """
-            Apply CTF to projection
+            Apply CTF to projected slice by convolution.
+
             slice : arr
                 Slice of map_3d_f. Corresponds to Fourier transform
                 of projection of rotated map_3d_f.
@@ -253,6 +256,23 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
             # particle_f_2 = particles_f_2[particle_idx]
 
             def do_wiener_filter(projection, ctf, small_number):
+                """
+                Apply Wiener filter to particle projection.
+
+                Parameters
+                ----------
+                projection : arr
+                    Shape (n_pix, n_pix)
+                ctf : arr
+                    Shape (n_pix, n_pix)
+                small_number : float
+                    Used for tuning Wiener filter.
+
+                Returns
+                -------
+                projection_wfilter_f : arr
+                    Shape (n_pix, n_pix) the filtered projection. 
+                """
                 wfilter = ctf / (ctf * ctf + small_number)
                 projection_wfilter_f = projection * wfilter
                 return projection_wfilter_f
@@ -273,31 +293,27 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
 
             def do_insert_slice(slice_real, xyz, n_pix):
                 """
-                Update map_3d_f_updated with values from slice.
-                Requires interpolation of off grid
-                see "Insert Fourier slices" in
-                https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/fourier_slice_2D_3D_with_trilinear.ipynb
-                # TODO: vectorize so can take in many slices;
-                #  i.e. do the compoutation in a vetorized way and
-                #  return inserted_slices_3d, counts_3d of shape
-                #  (n_slice,n_pix,n_pix,n_pix)
+                Rotate slice and interpolate onto a 3D grid to prepare
+                for insertion.
 
                 Parameters
                 ----------
                 slice_real : float64 arr
-                    Shape (n_pix, n_pix)
+                    Shape (n_pix, n_pix) the slice of interest.
                 xyz : arr
-                    Shape (n_pix**2, 3)
+                    Shape (n_pix**2, 3) plane corresponding to slice rotation.
                 n_pix : int
-                    Number of pixels
+                    Number of pixels.
 
                 Returns
                 -------
                 inserted_slice_3d : float64 arr
-                    Slice to insert.
+                    Rotated slice in 3D voxel array.
                     Shape (n_pix, n_pix)
                 count_3d : arr
-                    shape (n_pix?, n_pix, n_pix)
+                    Voxel array to count slice presence: 1 if slice present,
+                    otherwise 0.
+                    shape (n_pix, n_pix, n_pix)
 
                 """
 
@@ -346,14 +362,14 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
         def do_fsc(map_3d_f_1, map_3d_f_2):
             """
             Compute Fourier shell correlation.
-            Estimate noise from half maps
+            Estimate noise from half maps.
 
             Parameters
             ----------
             map_3d_f_1 : arr
-                Shape (n_pix,n_pix,n_pix)
+                Shape (n_pix, n_pix, n_pix)
             map_3d_f_2 : arr
-                Shape (n_pix,n_pix,n_pix)
+                Shape (n_pix, n_pix, n_pix)
 
             Returns
             -------
@@ -378,7 +394,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
 
         def do_expand_1d_3d(arr_1d):
             """
-            Expand 1D array data into spherical shell
+            Expand 1D array data into spherical shell.
 
             Parameters
             ----------
