@@ -62,7 +62,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
         arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
         if arr_1.shape[0] != arr_2.shape[0]:
-            arr_2 = arr[idx_half:2*idx_half]
+            arr_2 = arr[idx_half : 2 * idx_half]
 
         return arr_1, arr_2
 
@@ -185,7 +185,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
             n_rotations = rots.shape[0]
             # TODO: map_values interpolation, calculate from map, rots
             xyz_rotated = np.ones_like(xy_plane)
-            size = n_rotations * n_pix ** 2
+            size = n_rotations * n_pix**2
             slices = np.random.normal(size=size)
             slices.reshape(n_rotations, n_pix, n_pix)
             return slices, xyz_rotated
@@ -271,7 +271,7 @@ def do_iterative_refinement(map_3d_init, particles, ctf_info):
                 Returns
                 -------
                 projection_wfilter_f : arr
-                    Shape (n_pix, n_pix) the filtered projection. 
+                    Shape (n_pix, n_pix) the filtered projection.
                 """
                 wfilter = ctf / (ctf * ctf + small_number)
                 projection_wfilter_f = projection * wfilter
