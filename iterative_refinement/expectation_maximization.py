@@ -41,6 +41,7 @@ class IterativeRefinement:
         Final one dimensional fourier shell correlation.
         Shape (n_pix // 2,)
     """
+
     def __init__(self, map_3d_init, particles, ctf_info, max_itr=7):
         self.map_3d_init = map_3d_init
         self.particles = particles
@@ -67,7 +68,7 @@ class IterativeRefinement:
         arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
         if arr_1.shape[0] != arr_2.shape[0]:
-            arr_2 = arr[idx_half:2 * idx_half]
+            arr_2 = arr[idx_half : 2 * idx_half]
 
         return arr_1, arr_2
 
@@ -127,7 +128,7 @@ class IterativeRefinement:
         # TODO:
         # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
 
-        xy_plane = np.ones((n_pix ** 2, 3))
+        xy_plane = np.ones((n_pix**2, 3))
         return xy_plane
 
     def generate_slices(self, map_3d_f, xy_plane, n_pix, rots):
@@ -160,7 +161,7 @@ class IterativeRefinement:
         map_3d_f = np.ones_like(map_3d_f)
         xyz_rotated = np.ones_like(xy_plane)
 
-        size = n_rotations * n_pix ** 2
+        size = n_rotations * n_pix**2
         slices = np.random.normal(size=size)
         slices.reshape(n_rotations, n_pix, n_pix)
         return slices, xyz_rotated
