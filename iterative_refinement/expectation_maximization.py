@@ -41,6 +41,7 @@ class IterativeRefinement:
         Final one dimensional fourier shell correlation.
         Shape (n_pix // 2,)
     """
+
     def __init__(self, map_3d_init, particles, ctf_info, max_itr=7):
         self.map_3d_init = map_3d_init
         self.particles = particles
@@ -59,15 +60,15 @@ class IterativeRefinement:
         Returns
         -------
         arr1 : arr
-            Shape (n_pix // 2, n_pix, n_pix)
+            Shape (n_particles // 2, ...)
         arr2: arr
-            Shape (n_pix // 2, n_pix, n_pix)
+            Shape (n_particles // 2, ...)
         """
         idx_half = arr.shape[0] // 2
         arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
         if arr_1.shape[0] != arr_2.shape[0]:
-            arr_2 = arr[idx_half:2 * idx_half]
+            arr_2 = arr[idx_half : 2 * idx_half]
 
         return arr_1, arr_2
 
