@@ -271,16 +271,11 @@ class IterativeRefinement:
         ----------
         map_3d_f_1 : arr
             Shape (n_pix, n_pix, n_pix)
-        map_3d_f_2 : arr
-            Shape (n_pix, n_pix, n_pix)
 
         Returns
         -------
         fsc_1d_1 : arr
             Noise estimates for map 1.
-            Shape (n_pix // 2,)
-        fsc_1d_2 : arr
-            Noise estimates for map 2.
             Shape (n_pix // 2,)
         """
         # TODO: write fast vectorized fsc from code snippets in
