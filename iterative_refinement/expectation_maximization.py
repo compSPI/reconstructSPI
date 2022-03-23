@@ -55,7 +55,7 @@ class IterativeRefinement:
         Parameters
         ----------
         arr : arr
-            Shape (n_pix, n_pix, n_pix)
+            Shape (n_particles, ...)
 
         Returns
         -------
@@ -103,7 +103,7 @@ class IterativeRefinement:
         Returns
         -------
         rots : arr
-            List of rotations.
+            Array describing rotations.
             Shape (n_rotations, 3, 3)
         """
         rots = np.ones((n_rotations, 3, 3))
@@ -116,7 +116,7 @@ class IterativeRefinement:
         Parameters
         ----------
         n_pix : int
-            Number of pixels
+            Number of pixels along one edge of the plane.
 
         Returns
         xy_plane : arr
@@ -142,8 +142,13 @@ class IterativeRefinement:
         ----------
         map_3d_f : arr
             Shape (n_pix, n_pix, n_pix)
+        xy_plane : arr
+            Array describing xy plane in space.
+            Shape (n_pix**2, 3)
+        n_pix : int
+            Number of pixels along one edge of the plane.
         rots : arr
-            List of rotations.
+            Array describing rotations.
             Shape (n_rotations, 3, 3)
 
         Returns
@@ -172,7 +177,7 @@ class IterativeRefinement:
 
         particle_slice : arr
             Slice of map_3d_f. Corresponds to Fourier transform
-            of projection of rotated map_3d_f.
+            of projection of rotated map_3d_r.
             Shape (n_pix, n_pix)
         ctf : arr
             CTF parameters for particle.
@@ -252,10 +257,12 @@ class IterativeRefinement:
             otherwise 0.
             Shape (n_pix, n_pix, n_pix)
         """
+        inserted_slice_3d = slice_real
+        shape = xyz.shape[0]
+        count_3d = np.ones((shape, shape, shape))
+        return inserted_slice_3d, count_3d
 
-        return slice_real, xyz, n_pix
-
-    def compute_fsc(self, map_3d_f_1, map_3d_f_2):
+    def compute_fsc(self, map_3d_f_1):
         """
         Compute Fourier shell correlation.
         Estimate noise from half maps.
@@ -281,10 +288,8 @@ class IterativeRefinement:
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/mFSC.ipynb
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/guinier_fsc_sharpen.ipynb
         n_pix_1 = map_3d_f_1.shape[0]
-        n_pix_2 = map_3d_f_2.shape[0]
         fsc_1d_1 = np.ones(n_pix_1 // 2)
-        fsc_1d_2 = np.ones(n_pix_2 // 2)
-        return fsc_1d_1, fsc_1d_2
+        return fsc_1d_1
 
     def expand_1d_to_3d(self, arr_1d):
         """
