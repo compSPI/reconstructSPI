@@ -51,4 +51,4 @@ jobs:
           isort --profile black --check .
       - name: linting [flake8]
         run: |
-          flake8 ioSPI tests
+          flake8 reconstructSPI tests
