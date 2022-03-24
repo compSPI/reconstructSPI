@@ -42,14 +42,14 @@ class IterativeRefinement:
         Shape (n_pix // 2,)
     """
 
-    def __init__(self, map_3d_init, particles, ctf_info, max_itr=7):
+    def __init__(map_3d_init, particles, ctf_info, max_itr=7):
         self.map_3d_init = map_3d_init
         self.particles = particles
         self.ctf_info = ctf_info
         self.max_itr = max_itr
 
     @staticmethod
-    def split_array(self, arr):
+    def split_array(arr):
         """
         Split array into two halves along 0th axis.
 
@@ -93,7 +93,7 @@ class IterativeRefinement:
         return ctfs
 
     @staticmethod
-    def grid_SO3_uniform(self, n_rotations):
+    def grid_SO3_uniform(n_rotations):
         """
         Generate a discrete set of uniformly distributed rotations
         across SO(3).
@@ -113,7 +113,7 @@ class IterativeRefinement:
         return rots
 
     @staticmethod
-    def generate_xy_plane(self, n_pix):
+    def generate_xy_plane(n_pix):
         """
         Generate xy plane.
 
@@ -134,7 +134,7 @@ class IterativeRefinement:
         return xy_plane
 
     @staticmethod
-    def generate_slices(self, map_3d_f, xy_plane, n_pix, rots):
+    def generate_slices(map_3d_f, xy_plane, n_pix, rots):
         """
         Generates slice coordinates by rotating xy plane.
         Interpolate values from map_3d_f onto 3D coordinates.
@@ -176,7 +176,7 @@ class IterativeRefinement:
         return slices, xyz_rotated
 
     @staticmethod
-    def apply_ctf_to_slice(self, particle_slice, ctf):
+    def apply_ctf_to_slice(particle_slice, ctf):
         """
         Apply CTF to projected slice by convolution.
 
@@ -193,7 +193,7 @@ class IterativeRefinement:
         return projection_f_conv_ctf
 
     @staticmethod
-    def compute_bayesian_weights(self, particle, slices):
+    def compute_bayesian_weights(particle, slices):
         """
         Compute Bayesian weights of particle to slice
         under Gaussian white noise model.
@@ -217,7 +217,7 @@ class IterativeRefinement:
         return bayes_factors
 
     @staticmethod
-    def apply_wiener_filter(self, projection, ctf, small_number):
+    def apply_wiener_filter(projection, ctf, small_number):
         """
         Apply Wiener filter to particle projection.
 
@@ -240,7 +240,7 @@ class IterativeRefinement:
         return projection_wfilter_f
 
     @staticmethod
-    def insert_slice(self, slice_real, xyz, n_pix):
+    def insert_slice(slice_real, xyz, n_pix):
         """
         Rotate slice and interpolate onto a 3D grid to prepare
         for insertion.
@@ -270,7 +270,7 @@ class IterativeRefinement:
         return inserted_slice_3d, count_3d
 
     @staticmethod
-    def compute_fsc(self, map_3d_f_1):
+    def compute_fsc(map_3d_f_1):
         """
         Compute Fourier shell correlation.
         Estimate noise from half maps.
@@ -295,7 +295,7 @@ class IterativeRefinement:
         return fsc_1d_1
 
     @staticmethod
-    def expand_1d_to_3d(self, arr_1d):
+    def expand_1d_to_3d(arr_1d):
         """
         Expand 1D array data into spherical shell.
 
