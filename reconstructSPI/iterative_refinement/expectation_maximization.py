@@ -34,6 +34,23 @@ class IterativeRefinement:
     fsc_1d : arr
         Final one dimensional fourier shell correlation.
         Shape (n_pix // 2,)
+
+    References
+    ----------
+    1. Nelson, P. C. (2019). Chapter 12 : Single Particle
+    Reconstruction in Cryo-electron Microscopy.
+            In Physical Models of Living Systems (pp. 305–325).
+            https://repository.upenn.edu/physics_papers/656/
+    2. Scheres, S. H. W. (2012). RELION: Implementation of a
+    Bayesian approach to cryo-EM structure determination.
+            Journal of Structural Biology, 180(3), 519–530.
+            http://doi.org/10.1016/j.jsb.2012.09.006
+    3. Sigworth, F. J., Doerschuk, P. C., Carazo, J.-M., & Scheres,
+    S. H. W. (2010).
+            An Introduction to Maximum-Likelihood Methods in Cryo-EM.
+            In Methods in Enzymology (1st ed., Vol. 482,
+            pp. 263–294). Elsevier Inc.
+            http://doi.org/10.1016/S0076-6879(10)82011-7
     """
 
     def __init__(self, map_3d_init, particles, ctf_info, max_itr=7):
