@@ -10,8 +10,8 @@ from simSPI.transfer import eval_ctf
 
 class IterativeRefinement:
     """
-    Performs interative refimenent in a Bayesian expectation
-    maximization setting, i.e. maximum a posteriori estimation.
+    Serves as a base class to perform iterative refinement
+    reconstruction with respect to maximum likelihood esimation.
 
     Parameters
     ----------
