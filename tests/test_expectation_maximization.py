@@ -21,7 +21,7 @@ def test_ir():
 
 @pytest.fixture
 def n_pix():
-    """Get sample n_pix value."""
+    """Get sample n_pix value for consistency."""
     return 2
 
 
