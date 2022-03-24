@@ -14,10 +14,21 @@ def n():
 @pytest.fixture
 def test_ir(n):
     """Instantiate IterativeRefinement class for testing."""
+    ex_ctf = {
+        s : np.ones(n, n),
+        a : np.ones(n, n),
+        def1 : 1.0,
+        def2 : 1.0,
+        angast : 0.1,
+        kv : 0.1,
+        cs : 0.1,
+        bf : 0.1,
+        lp : 0.1
+    }
     map_3d = np.zeros((n, n, n))
     particles = np.zeros((n, n, n))
     ctf_info = [
-        {},
+        ex_ctf,
     ] * n
     itr = 7
     ir = em.IterativeRefinement(map_3d, particles, ctf_info, itr)
