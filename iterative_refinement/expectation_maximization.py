@@ -4,6 +4,7 @@ for reconstruction of particles.
 """
 
 from os import stat
+
 import numpy as np
 from simSPI.transfer import eval_ctf
 
