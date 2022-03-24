@@ -47,13 +47,14 @@ def test_split_array(test_ir, n):
 def test_build_ctf_array(test_ir, n):
     """Test bulding arbitrary CTF array."""
     ctfs = test_ir.build_ctf_array()
-    assert ctfs.shape == (n, n, n)
+    assert len(ctfs) == n
+    assert ctfs[0].shape == (n, n)
 
 
 def test_grid_SO3_uniform(test_ir, n):
     """Test generation of rotations in SO(3)."""
     rots = test_ir.grid_SO3_uniform(n)
-    assert rots.shape == (n, n, n)
+    assert rots.shape == (n, 3, 3)
 
 
 def test_generate_xy_plane(test_ir, n):
@@ -112,8 +113,8 @@ def test_insert_slice(test_ir, n):
     xyz = test_ir.generate_xy_plane(n)
 
     inserted, count = test_ir.insert_slice(particle_slice, xyz, n)
-    assert inserted.shape == (n, n, n)
-    assert count.shape == (n, n, n)
+    assert inserted.shape == (n * n, 3)
+    assert count.shape == (n * n, 3)
 
 
 def test_compute_fsc(test_ir, n):

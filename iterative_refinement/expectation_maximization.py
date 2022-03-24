@@ -120,7 +120,7 @@ class IterativeRefinement:
         # See how meshgrid and generate coordinates functions used
         # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
 
-        xy_plane = np.ones((n_pix, n_pix, 3))
+        xy_plane = np.ones((n_pix * n_pix, 3))
         return xy_plane
 
     @staticmethod
@@ -202,7 +202,7 @@ class IterativeRefinement:
         """
         n_slices = slices.shape[0]
         particle = np.ones_like(particle)
-        bayes_factors = np.random.normal(n_slices)
+        bayes_factors = np.random.normal(size = n_slices)
         return bayes_factors
 
     @staticmethod
@@ -244,11 +244,11 @@ class IterativeRefinement:
         -------
         inserted_slice_3d : float64 arr
             Rotated slice in 3D voxel array.
-            Shape (n_pix, n_pix)
+            Shape (n_pix**2, 3)
         count_3d : arr
             Voxel array to count slice presence: 1 if slice present,
             otherwise 0.
-            Shape (n_pix, n_pix, n_pix)
+            Shape (n_pix**2, 3)
         """
         inserted_slice_3d = slice_real
         shape = xyz.shape[0]
