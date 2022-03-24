@@ -12,7 +12,6 @@ def n():
     return 2
 
 
-
 @pytest.fixture
 def test_ir(n):
     """Instantiate IterativeRefinement class for testing."""
