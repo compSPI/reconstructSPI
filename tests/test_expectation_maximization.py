@@ -40,8 +40,13 @@ def test_split_array(test_ir, n):
     """Test splitting of array in two halves."""
     arr = np.zeros(n)
     arr1, arr2 = test_ir.split_array(arr)
-    assert arr1.shape == (n / 2,)
-    assert arr2.shape == (n / 2,)
+    assert arr1.shape == (n // 2,)
+    assert arr2.shape == (n // 2,)
+
+    arr = np.zeros(n + 1)
+    arr1, arr2 = test_ir.split_array(arr)
+    assert arr1.shape == ((n + 1) // 2,)
+    assert arr2.shape == ((n + 1) // 2,)
 
 
 def test_build_ctf_array(test_ir, n):
