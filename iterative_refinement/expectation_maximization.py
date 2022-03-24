@@ -112,7 +112,7 @@ class IterativeRefinement:
             Number of pixels along one edge of the plane.
 
         Returns
-		-------
+        -------
         xy_plane : arr
             Array describing xy plane in space.
             Shape (n_pix**2, 3)
