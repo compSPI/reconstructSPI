@@ -202,7 +202,7 @@ class IterativeRefinement:
         """
         n_slices = slices.shape[0]
         particle = np.ones_like(particle)
-        bayes_factors = np.random.normal(size = n_slices)
+        bayes_factors = np.random.normal(size=n_slices)
         return bayes_factors
 
     @staticmethod
