@@ -1,16 +1,11 @@
-"""
-Iterative refinement in Bayesian expection maximization setting
-for reconstruction of particles.
-"""
+"""Iterative refinement with Bayesian expection maximization."""
 
 import numpy as np
 from simSPI.transfer import eval_ctf
 
 
 class IterativeRefinement:
-    """
-    Serves as a base class to perform iterative refinement
-    reconstruction with respect to maximum likelihood esimation.
+    """Perform iterative refinement with max likelihood esimation.
 
     Parameters
     ----------
@@ -49,8 +44,7 @@ class IterativeRefinement:
 
     @staticmethod
     def split_array(arr):
-        """
-        Split array into two halves along 0th axis.
+        """Split array into two halves along 0th axis.
 
         Parameters
         ----------
@@ -73,9 +67,9 @@ class IterativeRefinement:
         return arr_1, arr_2
 
     def build_ctf_array(self):
-        """
-        Build 2D array of evaluated CTFs from inputted
-        CTF parameters for each particle.
+        """Build 2D array of evaluated CTFs.
+		
+		Use inputted CTF parameters, act for each particle.
 
         Returns
         -------
@@ -92,9 +86,7 @@ class IterativeRefinement:
 
     @staticmethod
     def grid_SO3_uniform(n_rotations):
-        """
-        Generate a discrete set of uniformly distributed rotations
-        across SO(3).
+        """Generate uniformly distributed rotations in SO(3).
 
         Parameters
         ----------
@@ -112,8 +104,7 @@ class IterativeRefinement:
 
     @staticmethod
     def generate_xy_plane(n_pix):
-        """
-        Generate xy plane.
+        """Generate xy plane.
 
         Parameters
         ----------
@@ -133,9 +124,9 @@ class IterativeRefinement:
 
     @staticmethod
     def generate_slices(map_3d_f, xy_plane, n_pix, rots):
-        """
-        Generates slice coordinates by rotating xy plane.
-        Interpolate values from map_3d_f onto 3D coordinates.
+        """Generate slice coordinates by rotating xy plane.
+        
+		Interpolate values from map_3d_f onto 3D coordinates.
 
         See how scipy map_values used to interpolate in
         https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L111
@@ -175,8 +166,7 @@ class IterativeRefinement:
 
     @staticmethod
     def apply_ctf_to_slice(particle_slice, ctf):
-        """
-        Apply CTF to projected slice by convolution.
+        """Apply CTF to projected slice by convolution.
 
         particle_slice : arr
             Slice of map_3d_f. Corresponds to Fourier transform
@@ -192,9 +182,9 @@ class IterativeRefinement:
 
     @staticmethod
     def compute_bayesian_weights(particle, slices):
-        """
-        Compute Bayesian weights of particle to slice
-        under Gaussian white noise model.
+        """Compute Bayesian weights of particle to slice.
+        
+		Use Gaussian white noise model.
 
         Parameters
         ----------
@@ -216,8 +206,7 @@ class IterativeRefinement:
 
     @staticmethod
     def apply_wiener_filter(projection, ctf, small_number):
-        """
-        Apply Wiener filter to particle projection.
+        """Apply Wiener filter to particle projection.
 
         Parameters
         ----------
@@ -239,9 +228,7 @@ class IterativeRefinement:
 
     @staticmethod
     def insert_slice(slice_real, xyz, n_pix):
-        """
-        Rotate slice and interpolate onto a 3D grid to prepare
-        for insertion.
+        """Rotate slice and interpolate onto a 3D grid.
 
         Parameters
         ----------
@@ -269,9 +256,9 @@ class IterativeRefinement:
 
     @staticmethod
     def compute_fsc(map_3d_f_1):
-        """
-        Compute Fourier shell correlation.
-        Estimate noise from half maps.
+        """Compute Fourier shell correlation. 
+		
+		Estimate noise from half maps.
 
         Parameters
         ----------
@@ -294,8 +281,7 @@ class IterativeRefinement:
 
     @staticmethod
     def expand_1d_to_3d(arr_1d):
-        """
-        Expand 1D array data into spherical shell.
+        """Expand 1D array data into spherical shell.
 
         Parameters
         ----------
