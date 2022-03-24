@@ -68,8 +68,8 @@ class IterativeRefinement:
 
     def build_ctf_array(self):
         """Build 2D array of evaluated CTFs.
-		
-		Use inputted CTF parameters, act for each particle.
+
+                Use inputted CTF parameters, act for each particle.
 
         Returns
         -------
@@ -125,8 +125,8 @@ class IterativeRefinement:
     @staticmethod
     def generate_slices(map_3d_f, xy_plane, n_pix, rots):
         """Generate slice coordinates by rotating xy plane.
-        
-		Interpolate values from map_3d_f onto 3D coordinates.
+
+                Interpolate values from map_3d_f onto 3D coordinates.
 
         See how scipy map_values used to interpolate in
         https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L111
@@ -183,8 +183,8 @@ class IterativeRefinement:
     @staticmethod
     def compute_bayesian_weights(particle, slices):
         """Compute Bayesian weights of particle to slice.
-        
-		Use Gaussian white noise model.
+
+                Use Gaussian white noise model.
 
         Parameters
         ----------
@@ -256,9 +256,9 @@ class IterativeRefinement:
 
     @staticmethod
     def compute_fsc(map_3d_f_1):
-        """Compute Fourier shell correlation. 
-		
-		Estimate noise from half maps.
+        """Compute Fourier shell correlation.
+
+                Estimate noise from half maps.
 
         Parameters
         ----------
