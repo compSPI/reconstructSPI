@@ -9,9 +9,9 @@ from iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def test_ir():
     """Instantiate IterativeRefinement class for testing."""
-	map = np.zeros((n_pix, n_pix, n_pix))
+    map = np.zeros((n_pix, n_pix, n_pix))
     particles = np.zeros((n_pix, n_pix, n_pix))
-	ctf_info = [{},] * n_pix
+    ctf_info = [{},] * n_pix
     itr = 7
     ir = em.IterativeRefinement(map, particles, ctf_info, itr)
     return ir
