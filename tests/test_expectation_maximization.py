@@ -108,7 +108,7 @@ def test_apply_wiener_filter(test_ir, n):
 
 
 def test_insert_slice(test_ir, n):
-    """Test insertion of slice."""
+    """Test insertion of particle slice."""
     particle_slice = np.ones((n, n))
     xyz = test_ir.generate_xy_plane(n)
 
