@@ -26,20 +26,8 @@ def test_split_array():
 
 def test_build_ctf_array():
     """Test bulding of arbitrary CTF array."""
-    ex_ctf = {
-        "s": np.ones(2, 2),
-        "a ": np.ones(2, 2),
-        "def1": 1.0,
-        "def2": 1.0,
-        "angast": 0.1,
-        "kv": 0.1,
-        "cs": 0.1,
-        "bf": 0.1,
-        "lp": 0.1,
-    }
-    ctf_params = [ex_ctf, ex_ctf]
-    ctfs = test_ir().build_ctf_array(ctf_params)
-    assert ctfs.shape == (2, 2, 2)
+    ctfs = test_ir().build_ctf_array()
+    assert ctfs.shape == (0, 0, 0)
 
 
 def test_grid_SO3_uniform():
