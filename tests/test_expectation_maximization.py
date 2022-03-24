@@ -7,7 +7,12 @@ from iterative_refinement import expectation_maximization as em
 
 
 @pytest.fixture
-def test_ir():
+def n():
+    """Get test array size value for consistency."""
+    return 2
+
+@pytest.fixture
+def test_ir(n):
     """Instantiate IterativeRefinement class for testing."""
     map_3d = np.zeros((n, n, n))
     particles = np.zeros((n, n, n))
@@ -19,39 +24,33 @@ def test_ir():
     return ir
 
 
-@pytest.fixture
-def n():
-    """Get test array size value for consistency."""
-    return 2
-
-
-def test_split_array(test_ir, k):
+def test_split_array(test_ir, n):
     """Test splitting of array in two halves."""
-    arr = np.zeros(k)
+    arr = np.zeros(n)
     arr1, arr2 = test_ir.split_array(arr)
-    assert arr1.shape == (k / 2,)
-    assert arr2.shape == (k / 2,)
+    assert arr1.shape == (n / 2,)
+    assert arr2.shape == (n / 2,)
 
 
-def test_build_ctf_array(test_ir):
+def test_build_ctf_array(test_ir, n):
     """Test bulding arbitrary CTF array."""
     ctfs = test_ir.build_ctf_array()
     assert ctfs.shape == (n, n, n)
 
 
-def test_grid_SO3_uniform(test_ir):
+def test_grid_SO3_uniform(test_ir, n):
     """Test generation of rotations across SO(3)."""
     rots = test_ir.grid_SO3_uniform(n)
     assert rots.shape == (n, n, n)
 
 
-def test_generate_xy_plane(test_ir, k):
+def test_generate_xy_plane(test_ir, n):
     """Test generation of xy plane."""
-    xy_plane = test_ir.generate_xy_plane(k)
-    assert xy_plane.shape == (k, k, 3)
+    xy_plane = test_ir.generate_xy_plane(n)
+    assert xy_plane.shape == (n, n, 3)
 
 
-def test_generate_slices(test_ir):
+def test_generate_slices(test_ir, n):
     """Test generation of slices."""
     map_3d = np.ones((n, n, n))
     rots = test_ir.grid_SO3_uniform(n)
@@ -64,7 +63,7 @@ def test_generate_slices(test_ir):
     assert xyz_rotated.shape == (n, n, 3)
 
 
-def test_apply_ctf_to_slice(test_ir):
+def test_apply_ctf_to_slice(test_ir, n):
     """Test convolution of slice with CTF."""
     particle_slice = np.ones((n, n))
     ctf = np.ones((n, n))
@@ -73,7 +72,7 @@ def test_apply_ctf_to_slice(test_ir):
     assert convolved.shape == (n, n)
 
 
-def test_compute_bayesian_weights(test_ir):
+def test_compute_bayesian_weights(test_ir, n):
     """Test computation of bayesian weights.
 
     For use under Gaussian white noise model.
@@ -85,7 +84,7 @@ def test_compute_bayesian_weights(test_ir):
     assert bayesian_weights.shape == (n,)
 
 
-def test_apply_wiener_filter(test_ir):
+def test_apply_wiener_filter(test_ir, n):
     """Test application of Wiener filter to particle projection."""
     projection = np.ones((n, n))
     ctf = np.zeros((n, n))
@@ -95,7 +94,7 @@ def test_apply_wiener_filter(test_ir):
     assert projection_wfilter_f.shape == (n, n)
 
 
-def test_insert_slice(test_ir):
+def test_insert_slice(test_ir, n):
     """Test insertion of slice."""
     particle_slice = np.ones((n, n))
     xyz = test_ir.generate_xy_plane(n)
@@ -105,7 +104,7 @@ def test_insert_slice(test_ir):
     assert count.shape == (n, n, n)
 
 
-def test_compute_fsc(test_ir):
+def test_compute_fsc(test_ir, n):
     """Test computation of FSC."""
     map_1 = np.ones((n, n, n))
 
@@ -113,7 +112,7 @@ def test_compute_fsc(test_ir):
     assert fsc_1.shape == (1,)
 
 
-def test_expand_1d_to_3d(test_ir):
+def test_expand_1d_to_3d(test_ir, n):
     """Test expansion of 1D array into spherical shell."""
     arr1d = np.ones(1)
     spherical = test_ir.expand_1d_to_3d(arr1d)
