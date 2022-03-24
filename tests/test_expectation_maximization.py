@@ -1,5 +1,3 @@
-from cmath import exp
-
 import numpy as np
 import pytest
 
@@ -9,7 +7,7 @@ from iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def test_ir():
     """Instantiate IterativeRefinement class for testing."""
-    ir = em.IterativeRefinement(np.ndarray(), list(), dict())
+    ir = em.IterativeRefinement(np.ndarray(), list(), dict(), 7)
     return ir
 
 
@@ -54,7 +52,7 @@ def test_generate_xy_plane():
 def test_generate_slices():
     """Test generation of slices."""
     map_3d = np.ones(2, 2, 2)
-    rots = test_grid_SO3_uniform(2)
+    rots = test_ir.grid_SO3_uniform(2)
     xy_plane = test_ir.generate_xy_plane(2)
 
     slices, xyz_rotated = test_ir.generate_slices(map_3d, rots)
@@ -91,7 +89,9 @@ def test_apply_wiener_filter():
     ctf = np.zeros(2, 2)
     small_number = 0.01
 
-    projection_wfilter_f = test_ir.apply_wiener_filter(projection, ctf, small_number)
+    projection_wfilter_f = test_ir.apply_wiener_filter(projection,
+                                                       ctf,
+                                                       small_number)
     assert projection_wfilter_f.shape == (2, 2)
 
 

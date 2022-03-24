@@ -4,7 +4,6 @@ for reconstruction of particles.
 """
 
 import numpy as np
-from compSPI.transforms import do_fft, do_ifft
 from simSPI.transfer import eval_ctf
 
 
@@ -68,7 +67,7 @@ class IterativeRefinement:
         arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
         if arr_1.shape[0] != arr_2.shape[0]:
-            arr_2 = arr[idx_half : 2 * idx_half]
+            arr_2 = arr[idx_half:2 * idx_half]
 
         return arr_1, arr_2
 
@@ -123,7 +122,6 @@ class IterativeRefinement:
             Array describing xy plane in space.
             Shape (n_pix**2, 3)
         """
-
         # See how meshgrid and generate coordinates functions used
         # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
 
@@ -183,9 +181,8 @@ class IterativeRefinement:
             CTF parameters for particle.
             Shape (n_pix,n_pix)
         """
-
         # vectorize and have shape match
-        projection_f_conv_ctf = ctf * slice
+        projection_f_conv_ctf = ctf * particle_slice 
         return projection_f_conv_ctf
 
     def compute_bayesian_weights(self, particle, slices):
@@ -259,7 +256,7 @@ class IterativeRefinement:
         """
         inserted_slice_3d = slice_real
         shape = xyz.shape[0]
-        count_3d = np.ones((shape, shape, shape))
+        count_3d = np.ones((shape, n_pix, n_pix))
         return inserted_slice_3d, count_3d
 
     def compute_fsc(self, map_3d_f_1):
