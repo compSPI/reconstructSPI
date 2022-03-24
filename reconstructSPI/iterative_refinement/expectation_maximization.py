@@ -1,11 +1,11 @@
-"""Iterative refinement with Bayesian expection maximization."""
+"""Iterative refinement with Bayesian expectation maximization."""
 
 import numpy as np
 from simSPI.transfer import eval_ctf
 
 
 class IterativeRefinement:
-    """Perform iterative refinement with max likelihood esimation.
+    """Perform iterative refinement with max likelihood estimation.
 
     Parameters
     ----------
