@@ -21,7 +21,7 @@ def test_ir():
 
 @pytest.fixture
 def n():
-    """Get sample n() value for consistency."""
+    """Get test array size value for consistency."""
     return 2
 
 
