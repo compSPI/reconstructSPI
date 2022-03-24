@@ -125,17 +125,17 @@ class IterativeRefinement:
         """
 
         # See how meshgrid and generate coordinates functions used
-        # TODO:
         # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
 
-        xy_plane = np.ones((n_pix**2, 3))
+        xy_plane = np.ones((n_pix ** 2, 3))
         return xy_plane
 
     def generate_slices(self, map_3d_f, xy_plane, n_pix, rots):
         """
         Generates slice coordinates by rotating xy plane.
         Interpolate values from map_3d_f onto 3D coordinates.
-        TODO: See how scipy map_values used to interpolate in
+        
+        See how scipy map_values used to interpolate in
         https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L111
 
         Parameters
@@ -162,11 +162,11 @@ class IterativeRefinement:
             Shape (n_pix**2, 3)
         """
         n_rotations = rots.shape[0]
-        # TODO: map_values interpolation, calculate from map, rots
+        # map_values interpolation, calculate from map, rots
         map_3d_f = np.ones_like(map_3d_f)
         xyz_rotated = np.ones_like(xy_plane)
 
-        size = n_rotations * n_pix**2
+        size = n_rotations * n_pix ** 2
         slices = np.random.normal(size=size)
         slices.reshape(n_rotations, n_pix, n_pix)
         return slices, xyz_rotated
@@ -184,7 +184,7 @@ class IterativeRefinement:
             Shape (n_pix,n_pix)
         """
 
-        # TODO: vectorize and have shape match
+        # vectorize and have shape match
         projection_f_conv_ctf = ctf * slice
         return projection_f_conv_ctf
 
@@ -278,7 +278,7 @@ class IterativeRefinement:
             Noise estimates for map 1.
             Shape (n_pix // 2,)
         """
-        # TODO: write fast vectorized fsc from code snippets in
+        # write fast vectorized fsc from code snippets in
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/fsc.ipynb
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/mFSC.ipynb
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/guinier_fsc_sharpen.ipynb
@@ -302,5 +302,5 @@ class IterativeRefinement:
         """
         n_pix = arr_1d.shape[0] * 2
         arr_3d = np.ones((n_pix, n_pix, n_pix))
-        # TODO: arr_1d fsc_1d to 3d (spherical shells)
+        # arr_1d fsc_1d to 3d (spherical shells)
         return arr_3d
