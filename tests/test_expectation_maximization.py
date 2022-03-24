@@ -77,7 +77,7 @@ def test_generate_slices(test_ir, n):
 
 
 def test_apply_ctf_to_slice(test_ir, n):
-    """Test convolution of slice with CTF."""
+    """Test convolution of particle slice with CTF."""
     particle_slice = np.ones((n, n))
     ctf = np.ones((n, n))
     convolved = test_ir.apply_ctf_to_slice(particle_slice, ctf)
