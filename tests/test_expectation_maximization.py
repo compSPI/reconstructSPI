@@ -9,13 +9,13 @@ from iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def test_ir():
     """Instantiate IterativeRefinement class for testing."""
-    map = np.zeros((n_pix, n_pix, n_pix))
+    map_3d = np.zeros((n_pix, n_pix, n_pix))
     particles = np.zeros((n_pix, n_pix, n_pix))
     ctf_info = [
         {},
     ] * n_pix
     itr = 7
-    ir = em.IterativeRefinement(map, particles, ctf_info, itr)
+    ir = em.IterativeRefinement(map_3d, particles, ctf_info, itr)
     return ir
 
 
@@ -97,7 +97,6 @@ def test_apply_wiener_filter(test_ir):
 
 def test_insert_slice(test_ir):
     """Test insertion of slice."""
-    n_pix = n_pix
     particle_slice = np.ones((n_pix, n_pix))
     xyz = test_ir.generate_xy_plane(n_pix)
 
