@@ -78,8 +78,8 @@ def test_apply_ctf_to_slice():
 
 def test_compute_bayesian_weights():
     """Test computation of bayesian weights.
-    
-	For use under Gaussian white noise model.
+
+    For use under Gaussian white noise model.
     """
     particle = np.ones(1, 2, 2)
     slices = np.ones(2, 2, 2)
