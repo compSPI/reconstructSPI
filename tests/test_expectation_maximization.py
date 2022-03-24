@@ -11,7 +11,6 @@ def n():
     """Get test array size value for consistency."""
     return 2
 
-
 @pytest.fixture
 def test_ir(n):
     """Instantiate IterativeRefinement class for testing."""
