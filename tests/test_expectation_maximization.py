@@ -73,7 +73,7 @@ def test_generate_slices(test_ir, n):
 
     assert xy_plane.shape == (n * n, 3)
     assert slices.shape == (n, n, n)
-    assert xyz_rotated.shape == (n**3,)
+    assert xyz_rotated.shape == (n * n, 3)
 
 
 def test_apply_ctf_to_slice(test_ir, n):
