@@ -3,7 +3,6 @@ Iterative refinement in Bayesian expection maximization setting
 for reconstruction of particles.
 """
 
-from os import stat
 import numpy as np
 from simSPI.transfer import eval_ctf
 
@@ -42,7 +41,7 @@ class IterativeRefinement:
         Shape (n_pix // 2,)
     """
 
-    def __init__(map_3d_init, particles, ctf_info, max_itr=7):
+    def __init__(self, map_3d_init, particles, ctf_info, max_itr=7):
         self.map_3d_init = map_3d_init
         self.particles = particles
         self.ctf_info = ctf_info
@@ -73,7 +72,6 @@ class IterativeRefinement:
 
         return arr_1, arr_2
 
-    @staticmethod
     def build_ctf_array(self):
         """
         Build 2D array of evaluated CTFs from inputted
