@@ -89,9 +89,7 @@ def test_apply_wiener_filter():
     ctf = np.zeros(2, 2)
     small_number = 0.01
 
-    projection_wfilter_f = test_ir.apply_wiener_filter(projection,
-                                                       ctf,
-                                                       small_number)
+    projection_wfilter_f = test_ir.apply_wiener_filter(projection, ctf, small_number)
     assert projection_wfilter_f.shape == (2, 2)
 
 

@@ -67,7 +67,7 @@ class IterativeRefinement:
         arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
         if arr_1.shape[0] != arr_2.shape[0]:
-            arr_2 = arr[idx_half:2 * idx_half]
+            arr_2 = arr[idx_half : 2 * idx_half]
 
         return arr_1, arr_2
 
@@ -182,7 +182,7 @@ class IterativeRefinement:
             Shape (n_pix,n_pix)
         """
         # vectorize and have shape match
-        projection_f_conv_ctf = ctf * particle_slice 
+        projection_f_conv_ctf = ctf * particle_slice
         return projection_f_conv_ctf
 
     def compute_bayesian_weights(self, particle, slices):
