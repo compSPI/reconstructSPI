@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from iterative_refinement import expectation_maximization as em
+from reconstructSPI.iterative_refinement import expectation_maximization as em
 
 
 @pytest.fixture
