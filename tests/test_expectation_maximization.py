@@ -16,8 +16,8 @@ def n():
 def test_ir(n):
     """Instantiate IterativeRefinement class for testing."""
     ex_ctf = {
-        's': np.ones(n, n),
-        'a': np.ones(n, n),
+        's': np.ones((n, n)),
+        'a': np.ones((n, n)),
         'def1': 1.0,
         'def2': 1.0,
         'angast': 0.1,
