@@ -162,7 +162,7 @@ class IterativeRefinement:
 
         size = n_rotations * n_pix**2
         slices = np.random.normal(size=size)
-        slices.reshape(n_rotations, n_pix, n_pix)
+        slices.reshape((n_rotations, n_pix, n_pix))
         return slices, xyz_rotated
 
     @staticmethod
