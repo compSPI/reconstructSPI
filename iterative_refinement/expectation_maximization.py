@@ -75,7 +75,7 @@ class IterativeRefinement:
     def build_ctf_array(self):
         """
         Build 2D array of evaluated CTFs from inputted
-        CTF parameters for a particle.
+        CTF parameters for each particle.
 
         Returns
         -------
