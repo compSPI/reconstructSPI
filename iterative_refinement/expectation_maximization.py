@@ -3,6 +3,7 @@ Iterative refinement in Bayesian expection maximization setting
 for reconstruction of particles.
 """
 
+from os import stat
 import numpy as np
 from simSPI.transfer import eval_ctf
 
@@ -47,6 +48,7 @@ class IterativeRefinement:
         self.ctf_info = ctf_info
         self.max_itr = max_itr
 
+    @staticmethod
     def split_array(self, arr):
         """
         Split array into two halves along 0th axis.
@@ -71,6 +73,7 @@ class IterativeRefinement:
 
         return arr_1, arr_2
 
+    @staticmethod
     def build_ctf_array(self):
         """
         Build 2D array of evaluated CTFs from inputted
@@ -89,6 +92,7 @@ class IterativeRefinement:
 
         return ctfs
 
+    @staticmethod
     def grid_SO3_uniform(self, n_rotations):
         """
         Generate a discrete set of uniformly distributed rotations
@@ -108,6 +112,7 @@ class IterativeRefinement:
         rots = np.ones((n_rotations, 3, 3))
         return rots
 
+    @staticmethod
     def generate_xy_plane(self, n_pix):
         """
         Generate xy plane.
@@ -128,6 +133,7 @@ class IterativeRefinement:
         xy_plane = np.ones((n_pix**2, 3))
         return xy_plane
 
+    @staticmethod
     def generate_slices(self, map_3d_f, xy_plane, n_pix, rots):
         """
         Generates slice coordinates by rotating xy plane.
@@ -169,6 +175,7 @@ class IterativeRefinement:
         slices.reshape(n_rotations, n_pix, n_pix)
         return slices, xyz_rotated
 
+    @staticmethod
     def apply_ctf_to_slice(self, particle_slice, ctf):
         """
         Apply CTF to projected slice by convolution.
@@ -185,6 +192,7 @@ class IterativeRefinement:
         projection_f_conv_ctf = ctf * particle_slice
         return projection_f_conv_ctf
 
+    @staticmethod
     def compute_bayesian_weights(self, particle, slices):
         """
         Compute Bayesian weights of particle to slice
@@ -208,6 +216,7 @@ class IterativeRefinement:
         bayes_factors = np.random.normal(n_slices)
         return bayes_factors
 
+    @staticmethod
     def apply_wiener_filter(self, projection, ctf, small_number):
         """
         Apply Wiener filter to particle projection.
@@ -230,6 +239,7 @@ class IterativeRefinement:
         projection_wfilter_f = projection * wfilter
         return projection_wfilter_f
 
+    @staticmethod
     def insert_slice(self, slice_real, xyz, n_pix):
         """
         Rotate slice and interpolate onto a 3D grid to prepare
@@ -259,6 +269,7 @@ class IterativeRefinement:
         count_3d = np.ones((shape, n_pix, n_pix))
         return inserted_slice_3d, count_3d
 
+    @staticmethod
     def compute_fsc(self, map_3d_f_1):
         """
         Compute Fourier shell correlation.
@@ -283,6 +294,7 @@ class IterativeRefinement:
         fsc_1d_1 = np.ones(n_pix_1 // 2)
         return fsc_1d_1
 
+    @staticmethod
     def expand_1d_to_3d(self, arr_1d):
         """
         Expand 1D array data into spherical shell.
