@@ -45,10 +45,10 @@ def test_grid_SO3_uniform(test_ir):
     assert rots.shape == (n(), n(), n())
 
 
-def test_generate_xy_plane(test_ir, n()):
+def test_generate_xy_plane(test_ir, k):
     """Test generation of xy plane."""
-    xy_plane = test_ir.generate_xy_plane(n())
-    assert xy_plane.shape == (n(), n(), 3)
+    xy_plane = test_ir.generate_xy_plane(k)
+    assert xy_plane.shape == (k, k, 3)
 
 
 def test_generate_slices(test_ir):
