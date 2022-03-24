@@ -115,12 +115,12 @@ class IterativeRefinement:
         -------
         xy_plane : arr
             Array describing xy plane in space.
-            Shape (n_pix**2, 3)
+            Shape (n_pix, n_pix, 3)
         """
         # See how meshgrid and generate coordinates functions used
         # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
 
-        xy_plane = np.ones((n_pix**2, 3))
+        xy_plane = np.ones((n_pix, n_pix, 3))
         return xy_plane
 
     @staticmethod
@@ -160,7 +160,7 @@ class IterativeRefinement:
         map_3d_f = np.ones_like(map_3d_f)
         xyz_rotated = np.ones_like(xy_plane)
 
-        size = n_rotations * n_pix**2
+        size = n_rotations * n_pix ** 2
         slices = np.random.normal(size=size)
         slices.reshape(n_rotations, n_pix, n_pix)
         return slices, xyz_rotated
