@@ -34,7 +34,7 @@ def test_split_array(test_ir, k):
 
 
 def test_build_ctf_array(test_ir):
-    """Test bulding of arbitrary CTF array."""
+    """Test bulding arbitrary CTF array."""
     ctfs = test_ir.build_ctf_array()
     assert ctfs.shape == (n, n, n)
 
