@@ -125,14 +125,14 @@ class IterativeRefinement:
         # See how meshgrid and generate coordinates functions used
         # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
 
-        xy_plane = np.ones((n_pix ** 2, 3))
+        xy_plane = np.ones((n_pix**2, 3))
         return xy_plane
 
     def generate_slices(self, map_3d_f, xy_plane, n_pix, rots):
         """
         Generates slice coordinates by rotating xy plane.
         Interpolate values from map_3d_f onto 3D coordinates.
-        
+
         See how scipy map_values used to interpolate in
         https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L111
 
@@ -164,7 +164,7 @@ class IterativeRefinement:
         map_3d_f = np.ones_like(map_3d_f)
         xyz_rotated = np.ones_like(xy_plane)
 
-        size = n_rotations * n_pix ** 2
+        size = n_rotations * n_pix**2
         slices = np.random.normal(size=size)
         slices.reshape(n_rotations, n_pix, n_pix)
         return slices, xyz_rotated
