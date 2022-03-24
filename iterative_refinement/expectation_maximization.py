@@ -160,7 +160,7 @@ class IterativeRefinement:
         map_3d_f = np.ones_like(map_3d_f)
         xyz_rotated = np.ones_like(xy_plane)
 
-        size = n_rotations * n_pix ** 2
+        size = n_rotations * n_pix**2
         slices = np.random.normal(size=size)
         slices.reshape(n_rotations, n_pix, n_pix)
         return slices, xyz_rotated
