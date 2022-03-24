@@ -62,7 +62,7 @@ class IterativeRefinement:
         arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
         if arr_1.shape[0] != arr_2.shape[0]:
-            arr_2 = arr[idx_half: 2 * idx_half]
+            arr_2 = arr[idx_half : 2 * idx_half]
 
         return arr_1, arr_2
 
