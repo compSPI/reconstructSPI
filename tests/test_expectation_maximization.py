@@ -39,7 +39,7 @@ def test_build_ctf_array(test_ir, n):
 
 
 def test_grid_SO3_uniform(test_ir, n):
-    """Test generation of rotations across SO(3)."""
+    """Test generation of rotations in SO(3)."""
     rots = test_ir.grid_SO3_uniform(n)
     assert rots.shape == (n, n, n)
 
