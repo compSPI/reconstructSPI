@@ -7,7 +7,10 @@ from iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def test_ir():
     """Instantiate IterativeRefinement class for testing."""
-    ir = em.IterativeRefinement(np.ndarray(), list(), dict(), 7)
+    my_list = []
+    my_dict = {}
+    itr = 7
+    ir = em.IterativeRefinement(my_list, my_dict, itr)
     return ir
 
 
