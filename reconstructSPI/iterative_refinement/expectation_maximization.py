@@ -93,7 +93,7 @@ class IterativeRefinement:
         half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
         half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
 
-        for iteration in range(self.max_itr):
+        for _ in range(self.max_itr):
 
             half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
             half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
@@ -125,7 +125,7 @@ class IterativeRefinement:
                 half_map_3d_f_2, xy0_plane, n_pix, rots
             )
 
-            # initialize
+            # initialize:
             # complex
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
             # complex
@@ -138,8 +138,8 @@ class IterativeRefinement:
             for particle_idx in range(particles_f_1.shape[0]):
                 ctf_1 = ctfs_1[particle_idx]
                 ctf_2 = ctfs_2[particle_idx]
-                # particle_f_1 = particles_f_1[particle_idx]
-                # particle_f_2 = particles_f_2[particle_idx]
+                # Option: particle_f_1 = particles_f_1[particle_idx]
+                # Option: particle_f_2 = particles_f_2[particle_idx]
 
                 particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
                     particles_f_1, ctf_1, 0.01
