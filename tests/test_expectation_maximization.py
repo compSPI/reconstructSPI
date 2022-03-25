@@ -31,7 +31,7 @@ def test_ir(n):
     ctf_info = [
         ex_ctf,
     ] * n
-    itr = 7
+    itr = 2
     ir = em.IterativeRefinement(map_3d, particles, ctf_info, itr)
     return ir
 
@@ -47,6 +47,20 @@ def test_split_array(test_ir, n):
     arr1, arr2 = test_ir.split_array(arr)
     assert arr1.shape == ((n + 1) // 2,)
     assert arr2.shape == ((n + 1) // 2,)
+
+
+def test_fft_3d(test_ir, n):
+    """Test 3D fourier transform."""
+    arr = np.zeros((n, n, n))
+    fft_arr = test_ir.fft_3d(arr)
+    assert fft_arr.shape == arr.shape
+
+
+def test_ifft_3d(test_ir, n):
+    """Test 3D inverse fourier transform."""
+    fft_arr = np.zeros((n, n, n))
+    arr = test_ir.fft_3d(fft_arr)
+    assert fft_arr.shape == arr.shape
 
 
 def test_build_ctf_array(test_ir, n):
@@ -136,3 +150,14 @@ def test_expand_1d_to_3d(test_ir, n):
     spherical = test_ir.expand_1d_to_3d(arr1d)
 
     assert spherical.shape == (n, n, n)
+
+
+def test_iterative_refinement(test_ir, n):
+    """Test complete iterative refinement algorithm."""
+    map_3d_r_final, half_map_3d_r_1, \
+        half_map_3d_r_2, fsc_1d = test_ir.iterative_refinement()
+
+    assert map_3d_r_final.shape == (n, n, n)
+    assert half_map_3d_r_1.shape == (n, n, n)
+    assert half_map_3d_r_2.shape == (n, n, n)
+    assert fsc_1d.shape == (n,)
