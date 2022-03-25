@@ -48,7 +48,7 @@ def test_split_array(test_ir, n):
     assert arr1.shape == ((n + 1) // 2,)
     assert arr2.shape == ((n + 1) // 2,)
 
-    arr = ['a', 'b']
+    arr = ["a", "b"]
     arr1, arr2 = test_ir.split_array(arr)
     assert len(arr1) == 1
     assert len(arr2) == 1
