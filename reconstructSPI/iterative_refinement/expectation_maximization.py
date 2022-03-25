@@ -431,9 +431,9 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
         """
         shape = xyz.shape[0]
-        count_3d = np.ones(n_pix, n_pix, n_pix)
+        count_3d = np.ones((n_pix, n_pix, n_pix))
         count_3d[0,0,0] *= shape
-        inserted_slice_3d = np.ones(n_pix, n_pix, n_pix)
+        inserted_slice_3d = np.ones((n_pix, n_pix, n_pix))
         return inserted_slice_3d, count_3d
 
     @staticmethod
