@@ -465,7 +465,7 @@ class IterativeRefinement:
         n_pix_2 = map_3d_f_2.shape[0]
         fsc_1d_1 = np.ones(n_pix_1 // 2)
         fsc_1d_2 = np.ones(n_pix_2 // 2)
-        noise_estimates = np.dot(fsc_1d_1, fsc_1d_2)
+        noise_estimates = fsc_1d_1 * fsc_1d_2
         return noise_estimates
 
     @staticmethod
