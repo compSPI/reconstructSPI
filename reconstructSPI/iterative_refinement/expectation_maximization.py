@@ -231,7 +231,10 @@ class IterativeRefinement:
         arr2: arr
             Shape (n_particles // 2, ...)
         """
-        idx_half = arr.shape[0] // 2
+        if isinstance(arr, list) or isinstance(arr, tuple):
+            idx_half = len(arr) // 2
+        else:
+            idx_half = arr.shape[0] // 2
         arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
         if arr_1.shape[0] != arr_2.shape[0]:
