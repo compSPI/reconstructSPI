@@ -233,12 +233,16 @@ class IterativeRefinement:
         """
         if isinstance(arr, (list, tuple)):
             idx_half = len(arr) // 2
+            arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
+
+            if len(arr_1) != len(arr_2):
+                arr_2 = arr[idx_half : 2 * idx_half]
         else:
             idx_half = arr.shape[0] // 2
-        arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
+            arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
-        if arr_1.shape[0] != arr_2.shape[0]:
-            arr_2 = arr[idx_half : 2 * idx_half]
+            if arr_1.shape[0] != arr_2.shape[0]:
+                arr_2 = arr[idx_half : 2 * idx_half]
 
         return arr_1, arr_2
 
