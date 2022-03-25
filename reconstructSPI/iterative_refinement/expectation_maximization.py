@@ -77,9 +77,9 @@ class IterativeRefinement:
         particles_f_2 = IterativeRefinement.fft_3d(particles_2)
 
         n_pix = self.map_3d_init.shape[0]
-        
+
         n_rotations = self.particles.shape[0]
-        
+
         # suggest 32 or 64 to start with. real data will be more like
         # 128 or 256. Can have issues with ctf at small pixels and
         # need to zero pad to avoid artefacts. Artefacts from ctf not
