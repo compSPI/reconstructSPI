@@ -63,7 +63,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
         fsc_1d : arr
             Final one dimensional fourier shell correlation.
-            Shape (n_pix,)
+            Shape (n_pix // 2,)
         """
         particles_1, particles_2 = IterativeRefinement.split_array(self.particles)
 
@@ -455,7 +455,7 @@ class IterativeRefinement:
         -------
         noise_estimate : arr
             Noise estimates from half maps.
-            Shape (n_pix,)
+            Shape (n_pix // 2,)
         """
         # write fast vectorized fsc from code snippets in
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/fsc.ipynb
@@ -465,7 +465,7 @@ class IterativeRefinement:
         n_pix_2 = map_3d_f_2.shape[0]
         fsc_1d_1 = np.ones(n_pix_1 // 2)
         fsc_1d_2 = np.ones(n_pix_2 // 2)
-        noise_estimates = np.concatenate((fsc_1d_1, fsc_1d_2))
+        noise_estimates = np.dot(fsc_1d_1, fsc_1d_2)
         return noise_estimates
 
     @staticmethod
