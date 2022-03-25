@@ -500,7 +500,7 @@ class IterativeRefinement:
             Fourier transform of array.
             Shape (n, n, n)
         """
-        return array.copy()
+        return np.zeros(array.shape, dtype=np.cdouble)
 
     @staticmethod
     def ifft_3d(fft_array):
@@ -518,4 +518,4 @@ class IterativeRefinement:
             Original array.
             Shape (n, n, n)
         """
-        return fft_array.copy()
+        return np.zeros(fft_array.shape)
