@@ -144,9 +144,10 @@ def test_insert_slice(test_ir, n):
 def test_compute_fsc(test_ir, n):
     """Test computation of FSC."""
     map_1 = np.ones((n, n, n))
+    map_2 = np.ones((n, n, n))
 
-    fsc_1 = test_ir.compute_fsc(map_1)
-    assert fsc_1.shape == (1,)
+    fsc_1 = test_ir.compute_fsc(map_1, map_2)
+    assert fsc_1.shape == (n,)
 
 
 def test_expand_1d_to_3d(test_ir, n):
