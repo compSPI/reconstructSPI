@@ -170,4 +170,4 @@ def test_iterative_refinement(test_ir, n):
     assert map_3d_r_final.shape == (n, n, n)
     assert half_map_3d_r_1.shape == (n, n, n)
     assert half_map_3d_r_2.shape == (n, n, n)
-    assert fsc_1d.shape == (n,)
+    assert fsc_1d.shape == (n // 2,)
