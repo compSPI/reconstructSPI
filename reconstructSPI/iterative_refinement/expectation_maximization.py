@@ -77,6 +77,9 @@ class IterativeRefinement:
         particles_f_2 = IterativeRefinement.fft_3d(particles_2)
 
         n_pix = self.map_3d_init.shape[0]
+        
+        n_rotations = self.particles.shape[0]
+        
         # suggest 32 or 64 to start with. real data will be more like
         # 128 or 256. Can have issues with ctf at small pixels and
         # need to zero pad to avoid artefacts. Artefacts from ctf not
@@ -111,7 +114,6 @@ class IterativeRefinement:
             #   based on how well the signal agrees in half_map_1,
             #   half_map_2 (Fourier frequency).
 
-            n_rotations = 1000
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
 
             xy0_plane = IterativeRefinement.generate_xy_plane(n_pix)
