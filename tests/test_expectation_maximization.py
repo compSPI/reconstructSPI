@@ -154,8 +154,12 @@ def test_expand_1d_to_3d(test_ir, n):
 
 def test_iterative_refinement(test_ir, n):
     """Test complete iterative refinement algorithm."""
-    map_3d_r_final, half_map_3d_r_1, \
-        half_map_3d_r_2, fsc_1d = test_ir.iterative_refinement()
+    (
+        map_3d_r_final,
+        half_map_3d_r_1,
+        half_map_3d_r_2,
+        fsc_1d,
+    ) = test_ir.iterative_refinement()
 
     assert map_3d_r_final.shape == (n, n, n)
     assert half_map_3d_r_1.shape == (n, n, n)

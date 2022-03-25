@@ -66,8 +66,7 @@ class IterativeRefinement:
             Shape (n_pix,)
         """
 
-        particles_1, particles_2 = \
-            IterativeRefinement.split_array(self.particles)
+        particles_1, particles_2 = IterativeRefinement.split_array(self.particles)
 
         ctfs = self.build_ctf_array()
         ctfs_1, ctfs_2 = IterativeRefinement.split_array(ctfs)
@@ -86,21 +85,19 @@ class IterativeRefinement:
         # can zero pad when do Fourier convolution (fft is on zero
         # padded and larger sized array)
 
-        half_map_3d_r_1, half_map_3d_r_2 = \
-            self.map_3d_init.copy(), self.map_3d_init.copy()
+        half_map_3d_r_1, half_map_3d_r_2 = (
+            self.map_3d_init.copy(),
+            self.map_3d_init.copy(),
+        )
         # should diverge because different particles averaging in
 
-        half_map_3d_f_1 = \
-            IterativeRefinement.fft_3d(half_map_3d_r_1)
-        half_map_3d_f_2 = \
-            IterativeRefinement.fft_3d(half_map_3d_r_2)
+        half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
+        half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
 
         for iteration in range(self.max_itr):
 
-            half_map_3d_f_1 = \
-                IterativeRefinement.fft_3d(half_map_3d_r_1)
-            half_map_3d_f_2 = \
-                IterativeRefinement.fft_3d(half_map_3d_r_2)
+            half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
+            half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
 
             # align particles to 3D volume
             # decide on granularity of rotations
@@ -120,16 +117,14 @@ class IterativeRefinement:
 
             xy0_plane = IterativeRefinement.generate_xy_plane(n_pix)
 
-            slices_1, xyz_rotated = \
-                IterativeRefinement.generate_slices(
-                    half_map_3d_f_1, xy0_plane, n_pix, rots
-                )
+            slices_1, xyz_rotated = IterativeRefinement.generate_slices(
+                half_map_3d_f_1, xy0_plane, n_pix, rots
+            )
             # Here rots are the same for the half maps,
             # but could be different in general.
-            slices_2, xyz_rotated = \
-                IterativeRefinement.generate_slices(
-                    half_map_3d_f_2, xy0_plane, n_pix, rots
-                )
+            slices_2, xyz_rotated = IterativeRefinement.generate_slices(
+                half_map_3d_f_2, xy0_plane, n_pix, rots
+            )
 
             # initialize
             # complex
@@ -147,69 +142,47 @@ class IterativeRefinement:
                 # particle_f_1 = particles_f_1[particle_idx]
                 # particle_f_2 = particles_f_2[particle_idx]
 
-                particle_f_deconv_1 = \
-                    IterativeRefinement.apply_wiener_filter(
-                        particles_f_1, ctf_1, 0.01
-                    )
-                particle_f_deconv_2 = \
-                    IterativeRefinement.apply_wiener_filter(
-                        particles_f_2, ctf_1, 0.01
-                    )
+                particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
+                    particles_f_1, ctf_1, 0.01
+                )
+                particle_f_deconv_2 = IterativeRefinement.apply_wiener_filter(
+                    particles_f_2, ctf_1, 0.01
+                )
 
                 # all slices get convolved with the particle ctf
-                apply_ctf = np.vectorize(
-                    IterativeRefinement.apply_ctf_to_slice
-                )
+                apply_ctf = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
 
                 slices_conv_ctfs_1 = apply_ctf(slices_1, ctf_1)
                 slices_conv_ctfs_2 = apply_ctf(slices_2, ctf_2)
 
-                bayes_factors_1 = \
-                    IterativeRefinement.compute_bayesian_weights(
-                        particles_f_1[particle_idx],
-                        slices_conv_ctfs_1
-                    )
-                bayes_factors_2 = \
-                    IterativeRefinement.compute_bayesian_weights(
-                        particles_f_2[particle_idx],
-                        slices_conv_ctfs_2
-                    )
+                bayes_factors_1 = IterativeRefinement.compute_bayesian_weights(
+                    particles_f_1[particle_idx], slices_conv_ctfs_1
+                )
+                bayes_factors_2 = IterativeRefinement.compute_bayesian_weights(
+                    particles_f_2[particle_idx], slices_conv_ctfs_2
+                )
 
                 for one_slice_idx in range(bayes_factors_1.shape[0]):
                     xyz = xyz_rotated[one_slice_idx]
                     # if this can be vectorized, can avoid loop
-                    inserted_slice_3d_r, count_3d_r = \
-                        IterativeRefinement.insert_slice(
-                            particle_f_deconv_1.real,
-                            xyz,
-                            n_pix
-                        )
-                    inserted_slice_3d_i, count_3d_i = \
-                        IterativeRefinement.insert_slice(
-                            particle_f_deconv_1.imag,
-                            xyz,
-                            n_pix
-                        )
-                    map_3d_f_updated_1 += inserted_slice_3d_r \
-                        + 1j * inserted_slice_3d_i
+                    inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
+                        particle_f_deconv_1.real, xyz, n_pix
+                    )
+                    inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
+                        particle_f_deconv_1.imag, xyz, n_pix
+                    )
+                    map_3d_f_updated_1 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
                     counts_3d_updated_1 += count_3d_r + count_3d_i
 
                 for one_slice_idx in range(bayes_factors_2.shape[0]):
                     xyz = xyz_rotated[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = \
-                        IterativeRefinement.insert_slice(
-                            particle_f_deconv_2.real,
-                            xyz,
-                            n_pix
-                        )
-                    inserted_slice_3d_i, count_3d_i = \
-                        IterativeRefinement.insert_slice(
-                            particle_f_deconv_2.imag,
-                            xyz,
-                            n_pix
-                        )
-                    map_3d_f_updated_2 += inserted_slice_3d_r \
-                        + 1j * inserted_slice_3d_i
+                    inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
+                        particle_f_deconv_2.real, xyz, n_pix
+                    )
+                    inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
+                        particle_f_deconv_2.imag, xyz, n_pix
+                    )
+                    map_3d_f_updated_2 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
                     counts_3d_updated_2 += count_3d_r + count_3d_i
 
             # apply noise model
@@ -233,18 +206,14 @@ class IterativeRefinement:
             half_map_3d_f_2 = map_3d_f_filtered_2
 
         # final map
-        fsc_1d = IterativeRefinement.compute_fsc(
-            half_map_3d_f_1, half_map_3d_f_2
-        )
+        fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
         fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
-        map_3d_f_final = \
-            (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
+        map_3d_f_final = (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
         map_3d_r_final = IterativeRefinement.ifft_3d(map_3d_f_final)
         half_map_3d_r_1 = IterativeRefinement.ifft_3d(half_map_3d_f_1)
         half_map_3d_r_2 = IterativeRefinement.ifft_3d(half_map_3d_f_2)
 
-        return map_3d_r_final, half_map_3d_r_1, \
-            half_map_3d_r_2, fsc_1d
+        return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
 
     @staticmethod
     def split_array(arr):
