@@ -137,8 +137,8 @@ def test_insert_slice(test_ir, n):
     xyz = test_ir.generate_xy_plane(n)
 
     inserted, count = test_ir.insert_slice(particle_slice, xyz, n)
-    assert inserted.shape == (n * n, 3)
-    assert count.shape == (n * n, 3)
+    assert inserted.shape == (n, n, n)
+    assert count.shape == (n, n, n)
 
 
 def test_compute_fsc(test_ir, n):

@@ -424,15 +424,16 @@ class IterativeRefinement:
         -------
         inserted_slice_3d : float64 arr
             Rotated slice in 3D voxel array.
-            Shape (n_pix**2, 3)
+            Shape (n_pix, n_pix, n_pix)
         count_3d : arr
             Voxel array to count slice presence: 1 if slice present,
             otherwise 0.
-            Shape (n_pix**2, 3)
+            Shape (n_pix, n_pix, n_pix)
         """
         shape = xyz.shape[0]
-        count_3d = np.ones((shape, 3))
-        inserted_slice_3d = np.ones((shape, 3))
+        count_3d = np.ones(n_pix, n_pix, n_pix)
+        count_3d[0,0,0] *= shape
+        inserted_slice_3d = np.ones(n_pix, n_pix, n_pix)
         return inserted_slice_3d, count_3d
 
     @staticmethod
