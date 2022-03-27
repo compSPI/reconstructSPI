@@ -6,7 +6,6 @@ dependencies:
   - codecov
   - coverage
   - gemmi
-  - numba
   - numpy
   - pillow>=8.2.0
   - pip
