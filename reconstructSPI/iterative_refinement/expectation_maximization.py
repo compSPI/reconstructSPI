@@ -433,7 +433,7 @@ class IterativeRefinement:
 
     @staticmethod
     def compute_fsc(map_3d_f_1, map_3d_f_2):
-        """Compute Fourier shell correlation.
+        """Compute the Fourier shell correlation.
 
                 Estimate noise from half maps.
 
