@@ -21,10 +21,10 @@ class IterativeRefinement:
 
     References
     ----------
-    1. Nelson, P. C. (2019). Chapter 12 : Single Particle
-    Reconstruction in Cryo-electron Microscopy.
-            In Physical Models of Living Systems (pp. 305–325).
-            https://repository.upenn.edu/physics_papers/656/
+    1. Nelson, P. C. (2021). Physical Models of Living Systems new
+    chapter: Single Particle Reconstruction in Cryo-electron
+    Microscopy.
+            https://repository.upenn.edu/physics_papers/656
     2. Scheres, S. H. W. (2012). RELION: Implementation of a
     Bayesian approach to cryo-EM structure determination.
             Journal of Structural Biology, 180(3), 519–530.
@@ -233,18 +233,11 @@ class IterativeRefinement:
         arr2: arr
             Shape (n_particles // 2, ...)
         """
-        if isinstance(arr, (list, tuple)):
-            idx_half = len(arr) // 2
-            arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
+        idx_half = len(arr) // 2
+        arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
-            if len(arr_1) != len(arr_2):
-                arr_2 = arr[idx_half : 2 * idx_half]
-        else:
-            idx_half = arr.shape[0] // 2
-            arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
-
-            if arr_1.shape[0] != arr_2.shape[0]:
-                arr_2 = arr[idx_half : 2 * idx_half]
+        if len(arr_1) != len(arr_2):
+            arr_2 = arr[idx_half : 2 * idx_half]
 
         return arr_1, arr_2
 
@@ -501,7 +494,7 @@ class IterativeRefinement:
         -------
         fft_array : arr
             Fourier transform of array.
-            Shape (n, n, n)
+            Shape (n_pix, n_pix, n_pix)
         """
         return np.zeros(array.shape, dtype=np.cdouble)
 
@@ -513,7 +506,7 @@ class IterativeRefinement:
         ----------
         fft_array : arr
             Fourier transform of array.
-            Shape (n, n, n)
+            Shape (n_pix, n_pix, n_pix)
 
         Returns
         -------
