@@ -17,6 +17,7 @@ def n_particles():
     """Get test particle count for consistency."""
     return 2
 
+
 @pytest.fixture
 def test_ir(n_pix, n_particles):
     """Instantiate IterativeRefinement class for testing."""
@@ -89,7 +90,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_xy_plane(test_ir, n_pix):
     """Test generation of xy plane."""
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    assert xy_plane.shape == (n_pix ** 2, 3)
+    assert xy_plane.shape == (n_pix**2, 3)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -98,16 +99,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_xy_plane(n_pix)
 
-    slices, xyz_rotated = test_ir.generate_slices(
-        map_3d,
-        xy_plane,
-        n_pix,
-        rots
-    )
+    slices, xyz_rotated = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
 
-    assert xy_plane.shape == (n_pix ** 2, 3)
+    assert xy_plane.shape == (n_pix**2, 3)
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated.shape == (n_pix ** 2, 3)
+    assert xyz_rotated.shape == (n_pix**2, 3)
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
