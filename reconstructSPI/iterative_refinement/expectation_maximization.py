@@ -1,5 +1,6 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
+import healpy as hp
 import numpy as np
 from simSPI.transfer import eval_ctf
 
@@ -274,8 +275,33 @@ class IterativeRefinement:
             Array describing rotations.
             Shape (n_rotations, 3, 3)
         """
-        rots = np.ones((n_rotations, 3, 3))
-        return rots
+        try:
+            # If n_rotations fits the healpix rotations, 
+            # we can do a proper uniform map.
+            nside = hp.npix2nside(n_rotations)
+
+            rots = np.ones((n_rotations, 3, 3))
+            return rots
+        except ValueError:
+            # If n_rotations can't be evenly distributed
+            # on a sphere by healpix, use random rots.
+            phi = np.random.random(n_rotations) * 2 * np.pi()
+            theta = np.arccos(np.random.random(n_rotations)) * (np.random.randint(2) * 2 - 1)
+            phi_matrices = np.array(
+                [
+                    [np.cos(phi), -np.sin(phi), 0],
+                    [np.sin(phi), np.cos(phi), 0],
+                    [0, 0, 1]
+                ]
+            )
+            theta_matrices = np.array(
+                [
+                    [1, 0, 0],
+                    [0, np.cos(theta), -np.sin(theta)],
+                    [0, np.sin(theta), np.cos(theta)]
+                ]
+            )
+            return np.dot(phi_matrices, theta_matrices)
 
     @staticmethod
     def generate_xy_plane(n_pix):
