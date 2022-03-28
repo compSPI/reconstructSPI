@@ -301,7 +301,7 @@ class IterativeRefinement:
                     [0, np.sin(theta), np.cos(theta)]
                 ]
             )
-            return np.dot(phi_matrices, theta_matrices)
+            return phi_matrices * theta_matrices
 
     @staticmethod
     def generate_xy_plane(n_pix):
