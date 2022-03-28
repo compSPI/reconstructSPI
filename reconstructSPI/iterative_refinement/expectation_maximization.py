@@ -488,7 +488,7 @@ class IterativeRefinement:
         ----------
         array : arr
             Input array.
-            Shape (n, n, n)
+            Shape (n_pix, n_pix, n_pix)
 
         Returns
         -------
@@ -512,6 +512,6 @@ class IterativeRefinement:
         -------
         array : arr
             Original array.
-            Shape (n, n, n)
+            Shape (n_pix, n_pix, n_pix)
         """
         return np.zeros(fft_array.shape)
