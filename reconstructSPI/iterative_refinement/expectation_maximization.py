@@ -43,7 +43,7 @@ class IterativeRefinement:
         self.ctf_info = ctf_info
         self.max_itr = max_itr
 
-    def iterative_refinement(self, wiener_small_number = 0.01, count_norm_const = 1):
+    def iterative_refinement(self, wiener_small_number=0.01, count_norm_const=1):
         """Perform iterative refinement.
 
         Acts in a Bayesian expectation maximization setting,
@@ -54,7 +54,7 @@ class IterativeRefinement:
         wiener_small_number : float
             Used to tune Wiener filter.
         count_norm_const : float
-            Used to tune normalization of slice inserting. 
+            Used to tune normalization of slice inserting.
 
         Returns
         -------
@@ -197,18 +197,24 @@ class IterativeRefinement:
                     map_3d_f_updated_2 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
                     counts_3d_updated_2 += count_3d_r + count_3d_i
 
-                # normalize maps by slice counts to account 
+                # normalize maps by slice counts to account
                 # for spherical density differences
-                map_3d_f_norm_1 = map_3d_f_updated_1 * counts_3d_updated_1 / (count_norm_const + counts_3d_updated_1**2)
-                map_3d_f_norm_1 = map_3d_f_updated_2 * counts_3d_updated_2 / (count_norm_const + counts_3d_updated_2**2)
+                map_3d_f_norm_1 = (
+                    map_3d_f_updated_1
+                    * counts_3d_updated_1
+                    / (count_norm_const + counts_3d_updated_1**2)
+                )
+                map_3d_f_norm_1 = (
+                    map_3d_f_updated_2
+                    * counts_3d_updated_2
+                    / (count_norm_const + counts_3d_updated_2**2)
+                )
 
             # apply noise model
             # half_map_1, half_map_2 come from doing the above
             # independently. Filter by noise estimate (e.g. multiply
             # both half maps by FSC)
-            fsc_1d = IterativeRefinement.compute_fsc(
-                map_3d_f_norm_1, map_3d_f_norm_2
-            )
+            fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
 
             fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
 
