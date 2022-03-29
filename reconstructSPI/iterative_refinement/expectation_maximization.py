@@ -518,7 +518,6 @@ class IterativeRefinement:
         half_0 = np.flip(half_1, axis=2)
         arr_3d = np.concatenate((half_0, half_1), axis=2)
 
-        # arr_1d fsc_1d to 3d (spherical shells)
         return arr_3d
 
     @staticmethod
