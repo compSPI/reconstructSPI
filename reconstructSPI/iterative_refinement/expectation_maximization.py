@@ -509,44 +509,6 @@ class IterativeRefinement:
         rho = u**2 + v**2 + w**2
 
         for i in reversed(range(half_pix)):
-            corner_111 = np.where(rho <= i**2, arr_1d[i], corner_111)
-
-        corner_011 = np.flip(corner_111, axis=0)
-        quarter_11 = np.concatenate((corner_011, corner_111), axis=0)
-        quarter_01 = np.flip(quarter_11, axis=1)
-        half_1 = np.concatenate((quarter_01, quarter_11), axis=1)
-        half_0 = np.flip(half_1, axis=2)
-        arr_3d = np.concatenate((half_0, half_1), axis=2)
-
-        # arr_1d fsc_1d to 3d (spherical shells)
-        return arr_3d
-
-    @staticmethod
-    def expand_1d_to_3d(arr_1d):
-        """Expand 1D array data into spherical shell.
-
-        Parameters
-        ----------
-        arr_1d : arr
-            Shape (n_pix // 2)
-
-        Returns
-        -------
-        arr_3d : arr
-            Shape (spherical coords)
-        """
-        half_pix = arr_1d.shape[0]
-        corner_111 = np.zeros((half_pix, half_pix, half_pix))
-
-        x = np.linspace(0, half_pix, half_pix)
-        y = np.linspace(0, half_pix, half_pix)
-        z = np.linspace(0, half_pix, half_pix)
-
-        u, v, w = np.meshgrid(x, y, z, indexing="ij")
-
-        rho = u**2 + v**2 + w**2
-
-        for i in reversed(range(half_pix)):
             corner_111 = np.where(rho <= (i + 1) ** 2, arr_1d[i], corner_111)
 
         corner_011 = np.flip(corner_111, axis=0)
