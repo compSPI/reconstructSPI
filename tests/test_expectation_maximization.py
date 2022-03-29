@@ -162,9 +162,9 @@ def test_expand_1d_to_3d(test_ir, n_pix):
     arr_3d = test_ir.expand_1d_to_3d(arr_1d)
 
     assert arr_3d.shape == (n_pix, n_pix, n_pix)
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2:, n_pix // 2, n_pix // 2])
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2:, n_pix // 2])
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2, n_pix // 2:])
+    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2 :, n_pix // 2, n_pix // 2])
+    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2 :, n_pix // 2])
+    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2, n_pix // 2 :])
 
 
 def test_iterative_refinement(test_ir, n_pix):
