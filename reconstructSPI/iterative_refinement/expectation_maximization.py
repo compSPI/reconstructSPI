@@ -521,6 +521,7 @@ class IterativeRefinement:
         # arr_1d fsc_1d to 3d (spherical shells)
         return arr_3d
 
+    @staticmethod
     def expand_1d_to_3d(arr_1d):
         """Expand 1D array data into spherical shell.
 
