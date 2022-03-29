@@ -282,21 +282,21 @@ class IterativeRefinement:
                 (
                     (np.cos(phi), -np.sin(phi), 0),
                     (np.sin(phi), np.cos(phi), 0),
-                    (0, 0, 1)
+                    (0, 0, 1),
                 )
             )
             theta_matrix = np.array(
                 (
                     (np.cos(theta), 0, np.sin(theta)),
                     (0, 1, 0),
-                    (-np.sin(theta), 0, np.cos(theta))
+                    (-np.sin(theta), 0, np.cos(theta)),
                 )
             )
             psi_matrix = np.array(
                 (
                     (1, 0, 0),
                     (0, np.cos(psi), -np.sin(psi)),
-                    (0, np.sin(psi), np.cos(psi))
+                    (0, np.sin(psi), np.cos(psi)),
                 )
             )
             rots[i] = phi_matrix @ theta_matrix @ psi_matrix
