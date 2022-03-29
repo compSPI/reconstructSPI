@@ -1,6 +1,5 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
-import healpy as hp
 import numpy as np
 from simSPI.transfer import eval_ctf
 
