@@ -275,9 +275,9 @@ class IterativeRefinement:
             Array describing rotations.
             Shape (n_rotations, 3, 3)
         """
-        geom = special_orthogonal(3, 'matrix')
+        geom = special_orthogonal(3, "matrix")
         rots = geom.random_uniform(n_rotations)
-        
+
         return rots
 
     @staticmethod
