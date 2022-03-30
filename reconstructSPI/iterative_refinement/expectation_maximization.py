@@ -500,9 +500,9 @@ class IterativeRefinement:
         half_pix = arr_1d.shape[0]
         corner_111 = np.zeros((half_pix, half_pix, half_pix))
 
-        x = np.linspace(0, half_pix, half_pix)
-        y = np.linspace(0, half_pix, half_pix)
-        z = np.linspace(0, half_pix, half_pix)
+        x = np.arange(0, half_pix)
+        y = np.arange(0, half_pix)
+        z = np.arange(0, half_pix)
 
         u, v, w = np.meshgrid(x, y, z, indexing="ij")
 
