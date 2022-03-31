@@ -132,11 +132,13 @@ class IterativeRefinement:
                 slices_conv_ctfs_1 = ctf_vectorized(slices_1, ctf_1)
                 slices_conv_ctfs_2 = ctf_vectorized(slices_2, ctf_2)
 
+                sigma = 1
+
                 bayes_factors_1 = IterativeRefinement.compute_bayesian_weights(
-                    particles_f_1[particle_idx], slices_conv_ctfs_1
+                    particles_f_1[particle_idx], slices_conv_ctfs_1, sigma
                 )
                 bayes_factors_2 = IterativeRefinement.compute_bayesian_weights(
-                    particles_f_2[particle_idx], slices_conv_ctfs_2
+                    particles_f_2[particle_idx], slices_conv_ctfs_2, sigma
                 )
 
                 for one_slice_idx in range(bayes_factors_1.shape[0]):
