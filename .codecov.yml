@@ -22,3 +22,5 @@ coverage:
 ignore:
   - "data"
   - "notebooks"
+  - "reconstructSPI/__init__.py"
+  - "reconstructSPI/iterative_refinement/__init__.py"
