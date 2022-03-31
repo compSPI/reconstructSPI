@@ -120,7 +120,7 @@ def test_compute_bayesian_weights(test_ir, n_particles, n_pix):
 
     For use under Gaussian white noise model.
     """
-    particle = np.ones((n_pix // 2, n_pix, n_pix))
+    particle = np.ones((n_pix, n_pix))
     slices = np.ones((n_particles, n_pix, n_pix))
     bayesian_weights = test_ir.compute_bayesian_weights(particle, slices)
 
