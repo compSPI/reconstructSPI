@@ -44,11 +44,18 @@ class IterativeRefinement:
         self.ctf_info = ctf_info
         self.max_itr = max_itr
 
-    def iterative_refinement(self):
+    def iterative_refinement(self, wiener_small_number=0.01, count_norm_const=1):
         """Perform iterative refinement.
 
         Acts in a Bayesian expectation maximization setting,
         i.e. maximum a posteriori estimation.
+
+        Parameters
+        ----------
+        wiener_small_number : float
+            Used to tune Wiener filter.
+        count_norm_const : float
+            Used to tune normalization of slice inserting.
 
         Returns
         -------
@@ -71,9 +78,6 @@ class IterativeRefinement:
         ctfs = self.build_ctf_array()
         ctfs_1, ctfs_2 = IterativeRefinement.split_array(ctfs)
 
-        # work in Fourier space. So particles can stay in Fourier
-        # space the whole time. They are experimental measurements
-        # and are fixed in the algorithm
         particles_f_1 = IterativeRefinement.fft_3d(particles_1)
         particles_f_2 = IterativeRefinement.fft_3d(particles_2)
 
@@ -81,18 +85,10 @@ class IterativeRefinement:
 
         n_rotations = self.particles.shape[0]
 
-        # suggest 32 or 64 to start with. real data will be more like
-        # 128 or 256. Can have issues with ctf at small pixels and
-        # need to zero pad to avoid artefacts. Artefacts from ctf not
-        # going to zero at edges, and sinusoidal ctf rippling too fast
-        # can zero pad when do Fourier convolution (fft is on zero
-        # padded and larger sized array)
-
         half_map_3d_r_1, half_map_3d_r_2 = (
             self.map_3d_init.copy(),
             self.map_3d_init.copy(),
         )
-        # should diverge because different particles averaging in
 
         half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
         half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
@@ -102,19 +98,6 @@ class IterativeRefinement:
             half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
             half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
 
-            # align particles to 3D volume
-            # decide on granularity of rotations
-            # i.e. how finely the rotational SO(3) space is sampled
-            # in a grid search. Smarter method is branch and bound...
-            # perhaps can make grid up front of slices, and then only
-            # compute norms on finer grid later. So re-use slices.
-
-            # def do_adaptive_grid_search(particle, map_3d):
-            #   a la branch and bound. Not sure exactly how you decide
-            #   how finely gridded to make it. Perhaps heuristics
-            #   based on how well the signal agrees in half_map_1,
-            #   half_map_2 (Fourier frequency).
-
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
 
             xy0_plane = IterativeRefinement.generate_xy_plane(n_pix)
@@ -122,40 +105,33 @@ class IterativeRefinement:
             slices_1, xyz_rotated = IterativeRefinement.generate_slices(
                 half_map_3d_f_1, xy0_plane, n_pix, rots
             )
-            # Here rots are the same for the half maps,
-            # but could be different in general.
+
             slices_2, xyz_rotated = IterativeRefinement.generate_slices(
                 half_map_3d_f_2, xy0_plane, n_pix, rots
             )
 
-            # initialize:
-            # complex
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
-            # complex
             map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
-            # float/real
+            map_3d_f_norm_1 = np.zeros_like(half_map_3d_f_1)
+            map_3d_f_norm_2 = np.zeros_like(half_map_3d_f_2)
             counts_3d_updated_1 = np.zeros_like(half_map_3d_r_1)
-            # float/real
             counts_3d_updated_2 = np.zeros_like(half_map_3d_r_2)
 
             for particle_idx in range(particles_f_1.shape[0]):
                 ctf_1 = ctfs_1[particle_idx]
                 ctf_2 = ctfs_2[particle_idx]
-                # Option: particle_f_1 = particles_f_1[particle_idx]
-                # Option: particle_f_2 = particles_f_2[particle_idx]
 
                 particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_1, ctf_1, 0.01
+                    particles_f_1, ctf_1, wiener_small_number
                 )
                 particle_f_deconv_2 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_2, ctf_1, 0.01
+                    particles_f_2, ctf_1, wiener_small_number
                 )
 
-                # all slices get convolved with the particle ctf
-                apply_ctf = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
+                ctf_vectorized = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
 
-                slices_conv_ctfs_1 = apply_ctf(slices_1, ctf_1)
-                slices_conv_ctfs_2 = apply_ctf(slices_2, ctf_2)
+                slices_conv_ctfs_1 = ctf_vectorized(slices_1, ctf_1)
+                slices_conv_ctfs_2 = ctf_vectorized(slices_2, ctf_2)
 
                 bayes_factors_1 = IterativeRefinement.compute_bayesian_weights(
                     particles_f_1[particle_idx], slices_conv_ctfs_1
@@ -166,7 +142,6 @@ class IterativeRefinement:
 
                 for one_slice_idx in range(bayes_factors_1.shape[0]):
                     xyz = xyz_rotated[one_slice_idx]
-                    # if this can be vectorized, can avoid loop
                     inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
                         particle_f_deconv_1.real, xyz, n_pix
                     )
@@ -187,28 +162,17 @@ class IterativeRefinement:
                     map_3d_f_updated_2 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
                     counts_3d_updated_2 += count_3d_r + count_3d_i
 
-            # apply noise model
-            # half_map_1, half_map_2 come from doing the above
-            # independently. Filter by noise estimate (e.g. multiply
-            # both half maps by FSC)
-            fsc_1d = IterativeRefinement.compute_fsc(
-                map_3d_f_updated_1, map_3d_f_updated_2
+                map_3d_f_norm_1 = IterativeRefinement.normalize_map(
+                    map_3d_f_updated_1, counts_3d_updated_1, count_norm_const
+                )
+                map_3d_f_norm_2 = IterativeRefinement.normalize_map(
+                    map_3d_f_updated_2, counts_3d_updated_2, count_norm_const
+                )
+
+            half_map_3d_f_1, half_map_3d_f_2 = IterativeRefinement.apply_noise_model(
+                map_3d_f_norm_1, map_3d_f_norm_2
             )
 
-            fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
-
-            # multiplicative filter on maps with fsc
-            # The FSC is 1D, one number per spherical shells
-            # it can be expanded back to a multiplicative filter of
-            # the same shape as the maps
-            map_3d_f_filtered_1 = map_3d_f_updated_1 * fsc_3d
-            map_3d_f_filtered_2 = map_3d_f_updated_2 * fsc_3d
-
-            # update iteration
-            half_map_3d_f_1 = map_3d_f_filtered_1
-            half_map_3d_f_2 = map_3d_f_filtered_2
-
-        # final map
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
         fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
         map_3d_f_final = (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
@@ -217,6 +181,58 @@ class IterativeRefinement:
         half_map_3d_r_2 = IterativeRefinement.ifft_3d(half_map_3d_f_2)
 
         return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
+
+    @staticmethod
+    def normalize_map(map_3d, counts, norm_const):
+        """Normalize map by slice counts per voxel.
+
+        Parameters
+        ----------
+        map_3d : arr
+            Shape (n_pix, n_pix, n_pix)
+            The map to be normalized.
+        counts : arr
+            Shape (n_pix, n_pix, n_pix)
+            The number of slices that were added within each voxel.
+        norm_const : float
+            A small number used as part of the wiener-filter-like
+            normalization.
+
+        Returns
+        -------
+        norm_map : arr
+            Shape (n_pix, n_pix, n_pix)
+            map normalized by counts.
+        """
+        return map_3d * counts / (norm_const + counts**2)
+
+    @staticmethod
+    def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
+        """Apply noise model to normalized maps in fourier space.
+
+        Parameters
+        ----------
+        map_3d_f_norm_1 : arr
+            Shape (n_pix, n_pix, n_pix)
+            Normalized fourier space half-map 1.
+        map_3d_f_norm_2 : arr
+            Shape (n_pix, n_pix, n_pix)
+            Normalized fourier space half-map 2.
+
+        Returns
+        -------
+        (map_3d_f_filtered_1, map_3d_f_filtered_2) : (arr, arr)
+            Shapes (n_pix, n_pix, n_pix)
+            Half-maps with fsc noise filtering applied.
+        """
+        fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
+
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
+
+        map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
+        map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
+
+        return (map_3d_f_filtered_1, map_3d_f_filtered_2)
 
     @staticmethod
     def split_array(arr):
@@ -369,7 +385,7 @@ class IterativeRefinement:
         Parameters
         ----------
         particle : arr
-            Shape (n_pix // 2,n_pix,n_pix)
+            Shape (n_pix, n_pix)
 
         slices : complex64 arr
             Shape (n_slices, n_pix, n_pix)
