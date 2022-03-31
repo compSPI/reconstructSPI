@@ -177,3 +177,44 @@ def test_iterative_refinement(test_ir, n_pix):
     assert half_map_3d_r_1.shape == (n_pix, n_pix, n_pix)
     assert half_map_3d_r_2.shape == (n_pix, n_pix, n_pix)
     assert fsc_1d.shape == (n_pix // 2,)
+
+
+def test_compute_bayesian_weights():
+  """
+  Test compute_bayesian_weights.
+
+  Compares "perfect alignment" against analytical forms. 
+  Perfect alignment has all noise residueals zero and 
+  all bayesian_weights equal. Small sigma makes this test fail 
+  because of numerical impercision in offset_safe + scale*particle_norm, 
+  which should be zero. Also important to keep the tolerance of the em_loss
+  test low.
+  """
+  sigma = 1 + np.random.normal(0,1)**2
+
+  n_pix = np.random.randint(low=10,high=100)
+  particle = np.ones((n_pix,n_pix)).astype(np.complex64)
+
+  n_particles = np.random.randint(low=10,high=100)
+  perfect_alignment_slices = np.ones((n_particles,n_pix,n_pix)).astype(np.complex64)
+
+  bayesian_weights, z_norm_const, em_loss = compute_bayesian_weights(particle, perfect_alignment_slices, sigma)
+  assert np.isclose(bayesian_weights.std(),0)
+  assert np.isclose(z_norm_const, 1/n_particles)
+  atol_keep_low = 1e-3
+  assert np.isclose(em_loss, np.log(n_particles), atol=atol_keep_low)
+
+  low_temp = 10
+  med_temp = 100
+  hi_temp = 1e6
+
+  slices_scale = perfect_alignment_slices*np.arange(1,n_particles+1)[...,None,None]
+  bayesian_weights_low, z_norm_const_low, em_loss_low = compute_bayesian_weights(particle, slices_scale, sigma=low_temp)
+  bayesian_weights_med, z_norm_const_med, em_loss_med = compute_bayesian_weights(particle, slices_scale, sigma=med_temp)
+  bayesian_weights_hi, z_norm_const_hi, em_loss_hi = compute_bayesian_weights(particle, slices_scale, sigma=hi_temp)
+
+  assert np.alltrue(bayesian_weights_low <= bayesian_weights_med)
+  assert np.alltrue(bayesian_weights_med <= bayesian_weights_hi)
+  assert z_norm_const_low >= z_norm_const_med >= z_norm_const_hi
+  assert em_loss_low <= em_loss_med <= em_loss_hi
+

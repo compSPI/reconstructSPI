@@ -531,3 +531,49 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
         """
         return np.zeros(fft_array.shape)
+
+
+    @staticmethod
+    def compute_bayesian_weights(particle, slices, sigma):
+    """Compute Bayesian weights of particle to slice.
+            Assumes a Gaussian white noise model.
+            
+    Parameters
+    ----------
+    particle : complex64 arr
+        Shape (n_pix,n_pix)
+    slices : complex64 arr
+        Shape (n_slices, n_pix, n_pix)
+    sigma : float
+      Gaussian white noise std
+
+    Returns
+    -------
+    bayesian_weights : float64 arr
+        Shape (n_slices,)
+    z_norm_const : float64
+      Normalizaing constant. 
+      
+    Notes
+    -------
+    Follows closely Nelson (2021)
+    z_norm_const is $U_i$ in Eq. 8.18
+    em_loss is $l_i$ from $L = \Sigma l_i$ in Eqs. 8.10, 8.21
+    bayesian_weights are $\gamma_i$ in Eq 8.11
+    offset_safe is $K_i$ in Eqs. 8.17, 8.21
+
+    The expectation step is the calculation of bayesian_weights and z_norm_const
+    The maximization step is the insertion of the particles 
+      into the volume, corresponding to the rotations of the slices
+      weighted by bayesian_weights 
+    """
+    corr_slices_particle = (particle[None,:,:]*slices.conj()).sum(axis=(1,2)).real
+    slices_norm = np.linalg.norm(slices,axis=(1,2))**2
+    particle_norm = np.linalg.norm(particle)**2
+    scale = -(2*sigma**2)**-1
+    log_bayesian_weights = scale*(slices_norm - 2*corr_slices_particle)
+    offset_safe = log_bayesian_weights.max()
+    bayesian_weights = np.exp(log_bayesian_weights-offset_safe)
+    z_norm_const = 1 / bayesian_weights.sum()
+    em_loss = -np.log(z_norm_const) + offset_safe + scale*particle_norm
+    return bayesian_weights, z_norm_const, em_loss
