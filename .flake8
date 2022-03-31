@@ -3,4 +3,4 @@ docstring-convention = numpy
 import_order_style = smarkets
 max-line-length = 88
 extend-ignore = E203,I202,I100
-exclude = __init__.py,iterative_refinement/__init.py,tests/__init__.py
+exclude = reconstructSPI/__init__.py,reconstructSPI/iterative_refinement/__init.py,tests/__init__.py
