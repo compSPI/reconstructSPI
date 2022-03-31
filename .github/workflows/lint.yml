@@ -11,7 +11,7 @@ on:
 
 
   pull_request:
-    branches: [master]
+    branches: [master,reconstructSPI_infrastructure]
     paths-ignore:
     - 'README.md'
     - '.deepsource.toml'
