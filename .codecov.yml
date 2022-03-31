@@ -13,6 +13,7 @@ coverage:
         # advanced
         branches:
           - master
+          - reconstructSPI_infrastructure
         if_no_uploads: error
         if_not_found: error
         if_ci_failed: error
