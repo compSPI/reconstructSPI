@@ -170,7 +170,7 @@ class IterativeRefinement:
                 map_3d_f_norm_1 = IterativeRefinement.normalize_map(map_3d_f_updated_1, counts_3d_updated_1, count_norm_const)
                 map_3d_f_norm_2 = IterativeRefinement.normalize_map(map_3d_f_updated_2, counts_3d_updated_2, count_norm_const)
 
-            half_map_3d_f_1, half_map_3d_f_2 = apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2)
+            half_map_3d_f_1, half_map_3d_f_2 = IterativeRefinement.apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2)
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
         fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
