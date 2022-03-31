@@ -1,0 +1,15 @@
+name: reconstructSPI
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - codecov
+  - coverage
+  - pillow>=8.2.0
+  - pip
+  - pytest
+  - pytest-cov
+  - pytorch
+  - pip :
+      - git+https://github.com/compSPI/simSPI.git
+
