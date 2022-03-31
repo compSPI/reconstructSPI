@@ -176,12 +176,12 @@ class IterativeRefinement:
         return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
 
     @staticmethod
-    def normalize_map(map, counts, norm_const):
+    def normalize_map(map_3d, counts, norm_const):
         """Normalize map by slice counts per voxel.
 
         Parameters
         ----------
-        map : arr
+        map_3d : arr
             Shape (n_pix, n_pix, n_pix)
             The map to be normalized.
         counts : arr
@@ -197,7 +197,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts**2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
