@@ -5,9 +5,6 @@ channels:
 dependencies:
   - codecov
   - coverage
-  - gemmi
-  - numpy
-  - numba
   - pillow>=8.2.0
   - pip
   - pytest
