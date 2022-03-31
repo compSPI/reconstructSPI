@@ -2,7 +2,7 @@ name: "Test"
 
 on:
   push:
-    branches: [master,github-actions-test]
+    branches: [master,github-actions-test,reconstructSPI_infrastructure]
     paths-ignore:
     - 'README.md'
     - '.deepsource.toml'
