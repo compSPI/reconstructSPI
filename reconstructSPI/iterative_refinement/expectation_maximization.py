@@ -178,7 +178,7 @@ class IterativeRefinement:
     @staticmethod
     def normalize_map(map, counts, norm_const):
         """Normalize map by slice counts per voxel.
-        
+
         Parameters
         ----------
         map : arr
@@ -190,7 +190,7 @@ class IterativeRefinement:
         norm_const : float
             A small number used as part of the wiener-filter-like
             normalization.
-        
+
         Returns
         -------
         norm_map : arr
@@ -202,7 +202,7 @@ class IterativeRefinement:
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
         """Apply noise model to normalized maps in fourier space.
-        
+
         Parameters
         ----------
         map_3d_f_norm_1 : arr
@@ -211,7 +211,7 @@ class IterativeRefinement:
         map_3d_f_norm_2 : arr
             Shape (n_pix, n_pix, n_pix)
             Normalized fourier space half-map 2.
-        
+
         Returns
         -------
         (map_3d_f_filtered_1, map_3d_f_filtered_2) : (arr, arr)
