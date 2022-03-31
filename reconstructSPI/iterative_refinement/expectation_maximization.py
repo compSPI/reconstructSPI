@@ -47,7 +47,7 @@ class IterativeRefinement:
         """Perform iterative refinement.
 
         Acts in a Bayesian expectation maximization setting,
-        i.e. maximum a posteriori estimation.
+        i.e. using maximum a posteriori estimation.
 
         Parameters
         ----------
