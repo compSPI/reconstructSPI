@@ -2,7 +2,7 @@ name: "Lint"
 
 on:
   push:
-    branches: [master,github-actions-test,reconstructSPI_infrastructure]
+    branches: [master,github-actions-test,dev,reconstructSPI_infrastructure]
     paths-ignore:
     - 'README.md'
     - '.deepsource.toml'
@@ -11,7 +11,7 @@ on:
 
 
   pull_request:
-    branches: [master,reconstructSPI_infrastructure]
+    branches: [master,dev,reconstructSPI_infrastructure]
     paths-ignore:
     - 'README.md'
     - '.deepsource.toml'
