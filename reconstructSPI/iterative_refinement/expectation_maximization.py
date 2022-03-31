@@ -77,9 +77,6 @@ class IterativeRefinement:
         ctfs = self.build_ctf_array()
         ctfs_1, ctfs_2 = IterativeRefinement.split_array(ctfs)
 
-        # work in Fourier space. So particles can stay in Fourier
-        # space the whole time. They are experimental measurements
-        # and are fixed in the algorithm
         particles_f_1 = IterativeRefinement.fft_3d(particles_1)
         particles_f_2 = IterativeRefinement.fft_3d(particles_2)
 
@@ -107,8 +104,7 @@ class IterativeRefinement:
             slices_1, xyz_rotated = IterativeRefinement.generate_slices(
                 half_map_3d_f_1, xy0_plane, n_pix, rots
             )
-            # Here rots are the same for the half maps,
-            # but could be different in general.
+            
             slices_2, xyz_rotated = IterativeRefinement.generate_slices(
                 half_map_3d_f_2, xy0_plane, n_pix, rots
             )
@@ -165,8 +161,6 @@ class IterativeRefinement:
                     map_3d_f_updated_2 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
                     counts_3d_updated_2 += count_3d_r + count_3d_i
 
-                # normalize maps by slice counts to account
-                # for spherical density differences
                 map_3d_f_norm_1 = IterativeRefinement.normalize_map(map_3d_f_updated_1, counts_3d_updated_1, count_norm_const)
                 map_3d_f_norm_2 = IterativeRefinement.normalize_map(map_3d_f_updated_2, counts_3d_updated_2, count_norm_const)
 
