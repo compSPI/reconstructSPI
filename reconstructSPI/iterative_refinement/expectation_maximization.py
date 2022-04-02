@@ -317,7 +317,7 @@ class IterativeRefinement:
         -------
         xy_plane : arr
             Array describing xy plane in space.
-            Shape (n_pix, n_pix, 3)
+            Shape (3, n_pix**2)
         """
         # See geoff's meshgrid and generate coordinates functions used
         # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96

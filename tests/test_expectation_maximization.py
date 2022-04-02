@@ -90,7 +90,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_xy_plane(test_ir, n_pix):
     """Test generation of xy plane."""
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    assert xy_plane.shape == (n_pix**2, 3)
+    assert xy_plane.shape == (3, n_pix**2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
