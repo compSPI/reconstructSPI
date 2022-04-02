@@ -281,6 +281,10 @@ class IterativeRefinement:
     def grid_SO3_uniform(n_rotations):
         """Generate uniformly distributed rotations in SO(3).
 
+        A note on functionality - the geomstats random_uniform library only produces
+        rotations onto one hemisphere. So, the rotations are randomly inverted, giving
+        them equal probability to fall in either hemisphere.
+
         Parameters
         ----------
         n_rotations : int
