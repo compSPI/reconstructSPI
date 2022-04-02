@@ -6,7 +6,6 @@ dependencies:
   - codecov
   - coverage
   - gemmi
-  - geomstats
   - numpy
   - numba
   - pillow>=8.2.0
@@ -16,4 +15,5 @@ dependencies:
   - pytorch
   - pip :
       - git+https://github.com/compSPI/simSPI.git
+      - geomstats
 
