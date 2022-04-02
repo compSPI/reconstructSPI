@@ -354,7 +354,7 @@ class IterativeRefinement:
             Number of pixels along one edge of the plane.
         rots : arr
             Array describing rotations.
-            Shape (n_rotations, 3, 3)
+            Shape (n_rotations, n_pix**2, 3)
 
         Returns
         -------
@@ -363,8 +363,8 @@ class IterativeRefinement:
             of projection of rotated map_3d_f.
             Shape (n_rotations, n_pix, n_pix)
         xyz_rotated : arr
-            Rotated xy plane.
-            Shape (n_pix**2, 3)
+            Rotated xy planes.
+            Shape (n_rotations, n_pix**2, 3)
         """
         n_rotations = rots.shape[0]
         # map_values interpolation, calculate from map, rots

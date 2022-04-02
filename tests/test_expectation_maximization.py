@@ -99,11 +99,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_xy_plane(n_pix)
 
-    slices, xyz_rotated = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
+    slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
 
     assert xy_plane.shape == (n_pix**2, 3)
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated.shape == (n_pix**2, 3)
+    assert xyz_rotated_planes.shape == (n_particles, n_pix**2, 3)
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
