@@ -368,7 +368,7 @@ class IterativeRefinement:
             Shape (n_rotations, 3, n_pix**2)
         """
         n_rotations = rots.shape[0]
-        # map_values interpolation, calculate from map, rots
+        
         slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
         xy_planes = np.repeat(np.expand_dims(xy_plane, axis=0), n_rotations, axis=0)
         for i in range(n_rotations):
