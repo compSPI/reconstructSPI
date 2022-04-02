@@ -141,12 +141,22 @@ class IterativeRefinement:
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_1[particle_idx], slices_conv_ctfs_1, sigma
                 )
+                print(
+                    "log z_norm_const_1={}, em_loss_1={}".format(
+                        z_norm_const_1, em_loss_1
+                    )
+                )
                 (
                     bayes_factors_2,
                     z_norm_const_2,
                     em_loss_2,
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_2[particle_idx], slices_conv_ctfs_2, sigma
+                )
+                print(
+                    "log z_norm_const_2={}, em_loss_2={}".format(
+                        z_norm_const_2, em_loss_2
+                    )
                 )
 
                 for one_slice_idx in range(bayes_factors_1.shape[0]):
