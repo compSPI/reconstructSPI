@@ -340,7 +340,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
         xy_plane : arr
             Array describing xy plane in space.
-            Shape (n_pix**2, 3)
+            Shape (3, n_pix**2)
         n_pix : int
             Number of pixels along one edge of the plane.
         rots : arr
@@ -355,12 +355,12 @@ class IterativeRefinement:
             Shape (n_rotations, n_pix, n_pix)
         xyz_rotated : arr
             Rotated xy plane.
-            Shape (n_pix**2, 3)
+            Shape (n_rotations, 3, n_pix**2)
         """
         n_rotations = rots.shape[0]
         # map_values interpolation, calculate from map, rots
         map_3d_f = np.ones_like(map_3d_f)
-        xyz_rotated = np.ones_like(xy_plane)
+        xyz_rotated = np.repeat(np.expand_dims(np.ones_like(xy_plane), axis=0), n_rotations, axis=0)
 
         size = n_rotations * n_pix**2
         slices = np.random.normal(size=size)
