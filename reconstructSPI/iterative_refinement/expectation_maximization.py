@@ -513,7 +513,7 @@ class IterativeRefinement:
 
     @staticmethod
     def binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1):
-        '''Construct a binary spherical shell mask (variable thickness). 
+        """Construct a binary spherical shell mask (variable thickness). 
 
         Parameters
         ----------
@@ -521,7 +521,7 @@ class IterativeRefinement:
             shape (3,)
             the co-ordinates of the center of the shell.
         radius : float
-            the radius in pixels of the shell. 
+            the radius in pixels of the shell.
         shape : array-like
             shape (3,)
             the shape of the outputted 3D array.
@@ -536,17 +536,17 @@ class IterativeRefinement:
             shape == shape
             An array of bools with "True" where the sphere mask is
             present.
-        '''
+        """
         a, b, c = center
         nx0, nx1, nx2 = shape
-        x0,x1,x2 = np.ogrid[-a:nx0-a,-b:nx1-b,-c:nx2-c]
+        x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
         r2 = x0**2 + x1**2 + x2**2
         mask = r2 <= radius**2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
-            mask_inner = r2 <= (radius - shell_thickness)**2
+            mask_inner = r2 <= (radius - shell_thickness) ** 2
             mask = np.logical_xor(mask_outer, mask_inner)
-        return(mask)
+        return mask
 
     @staticmethod
     def expand_1d_to_3d(arr_1d, n_pix):
