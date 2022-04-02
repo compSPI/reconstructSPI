@@ -368,14 +368,13 @@ class IterativeRefinement:
             Shape (n_rotations, 3, n_pix**2)
         """
         n_rotations = rots.shape[0]
-        
         slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
         xy_planes = np.repeat(np.expand_dims(xy_plane, axis=0), n_rotations, axis=0)
         for i in range(n_rotations):
             for xy in range(xy_plane.shape[1]):
-                xy_planes[i,:,xy] = rots[i] @ xy_planes[i,:,xy]
-            
-            slices[i] = map_coordinates(map_3d_f, xy_planes[i]).reshape((n_pix, n_pix))
+                xy_planes[i,:,xy] = (rots[i] @ (xy_planes[i,:,xy]))
+
+            slices[i] = map_coordinates(map_3d_f, xy_planes[i] + n_pix // 2).reshape((n_pix, n_pix))
 
         return slices, xy_planes
 
