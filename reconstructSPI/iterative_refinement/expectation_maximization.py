@@ -360,7 +360,9 @@ class IterativeRefinement:
         n_rotations = rots.shape[0]
         # map_values interpolation, calculate from map, rots
         map_3d_f = np.ones_like(map_3d_f)
-        xyz_rotated = np.repeat(np.expand_dims(np.ones_like(xy_plane), axis=0), n_rotations, axis=0)
+        xyz_rotated = np.repeat(
+            np.expand_dims(np.ones_like(xy_plane), axis=0), n_rotations, axis=0
+        )
 
         size = n_rotations * n_pix**2
         slices = np.random.normal(size=size)
