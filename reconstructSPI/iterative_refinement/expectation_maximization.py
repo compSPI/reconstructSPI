@@ -1,8 +1,9 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
 import numpy as np
-from simSPI.transfer import eval_ctf
+
 from geomstats.geometry import special_orthogonal
+from simSPI.transfer import eval_ctf
 
 
 class IterativeRefinement:
