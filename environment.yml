@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - codecov
+  - coords
   - coverage
   - gemmi
   - numpy

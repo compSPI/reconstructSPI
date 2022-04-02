@@ -1,5 +1,6 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
+import coords
 import numpy as np
 from scipy.ndimage import map_coordinates
 from simSPI.transfer import eval_ctf
@@ -316,7 +317,7 @@ class IterativeRefinement:
 
     @staticmethod
     def generate_xy_plane(n_pix):
-        """Generate xy plane.
+        """Generate (x,y,0) plane centered about (0,0,0).
 
         Parameters
         ----------
@@ -327,12 +328,12 @@ class IterativeRefinement:
         -------
         xy_plane : arr
             Array describing xy plane in space.
-            Shape (n_pix, n_pix, 3)
+            Shape (3, n_pix**2)
         """
-        # See how meshgrid and generate coordinates functions used
+        # See geoff's meshgrid and generate coordinates functions used
         # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
 
-        xy_plane = np.ones((n_pix * n_pix, 3))
+        xy_plane = coords.coords_n_by_d(np.arange(-n_pix // 2, n_pix // 2), d=3)
         return xy_plane
 
     @staticmethod
@@ -364,6 +365,7 @@ class IterativeRefinement:
             of projection of rotated map_3d_f.
             Shape (n_rotations, n_pix, n_pix)
         xyz_rotated : arr
+<<<<<<< HEAD
             Rotated xy planes.
             Shape (n_rotations, 3, n_pix**2)
         """
@@ -373,6 +375,17 @@ class IterativeRefinement:
         for i in range(n_rotations):
             for xy in range(xy_plane.shape[1]):
                 xy_planes[i,:,xy] = (rots[i] @ (xy_planes[i,:,xy]))
+=======
+            Rotated xy plane.
+            Shape (n_rotations, 3, n_pix**2)
+        """
+        n_rotations = rots.shape[0]
+        # map_values interpolation, calculate from map, rots
+        map_3d_f = np.ones_like(map_3d_f)
+        xyz_rotated = np.repeat(
+            np.expand_dims(np.ones_like(xy_plane), axis=0), n_rotations, axis=0
+        )
+>>>>>>> a8106eb07578cfa02ac899e75b2002ad446b2ad9
 
             slices[i] = map_coordinates(map_3d_f, xy_planes[i] + n_pix // 2).reshape((n_pix, n_pix))
 
