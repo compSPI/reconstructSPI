@@ -512,7 +512,7 @@ class IterativeRefinement:
         return noise_estimates
 
     @staticmethod
-    def binary_mask_3d(center, radius, shape, shell=False, shell_thickness=1):
+    def binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1):
         '''Construct a binary spherical shell mask (variable thickness). 
 
         Parameters
@@ -525,7 +525,7 @@ class IterativeRefinement:
         shape : array-like
             shape (3,)
             the shape of the outputted 3D array.
-        shell : bool
+        fill : bool
             Whether to output a shell or a solid sphere.
         shell_thickness : bool
             If outputting a shell, the shell thickness in pixels.
@@ -542,7 +542,7 @@ class IterativeRefinement:
         x0,x1,x2 = np.ogrid[-a:nx0-a,-b:nx1-b,-c:nx2-c]
         r2 = x0**2 + x1**2 + x2**2
         mask = r2 <= radius**2
-        if shell:
+        if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness)**2
             mask = np.logical_xor(mask_outer, mask_inner)
@@ -567,7 +567,7 @@ class IterativeRefinement:
         arr_3d = np.zeros((n_pix, n_pix, n_pix))
         center = (n_pix // 2, n_pix // 2, n_pix // 2)
         for i in reversed(range(n_pix // 2)):
-            mask = IterativeRefinement.binary_mask_3d(center, i, arr_3d.shape, shell=True)
+            mask = IterativeRefinement.binary_mask_3d(center, i, arr_3d.shape, fill=False)
             arr_3d = np.where(mask, arr_1d[i], arr_3d)
 
         return arr_3d
