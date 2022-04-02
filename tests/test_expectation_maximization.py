@@ -90,7 +90,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_xy_plane(test_ir, n_pix):
     """Test generation of xy plane."""
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    assert xy_plane.shape == (n_pix**2, 3)
+    assert xy_plane.shape == (n_pix ** 2, 3)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -101,9 +101,9 @@ def test_generate_slices(test_ir, n_particles, n_pix):
 
     slices, xyz_rotated = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
 
-    assert xy_plane.shape == (n_pix**2, 3)
+    assert xy_plane.shape == (n_pix ** 2, 3)
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated.shape == (n_pix**2, 3)
+    assert xyz_rotated.shape == (n_pix ** 2, 3)
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
@@ -196,6 +196,30 @@ def test_compute_fsc(test_ir, n_pix):
 
     fsc_1 = test_ir.compute_fsc(map_1, map_2)
     assert fsc_1.shape == (n_pix // 2,)
+
+
+def test_binary_mask_3d(test_ir):
+    """Test binary_mask_3d.
+
+    Sums shell through an axis, then converts to circle,
+    then checks if circle/square ratio agrees with largest
+    circle inscribed in square. Should be pi/4 by trigonometry,
+    in the limit of infinite n_pix. Use high n_pix so good approx.
+    """
+    n_pix = 512
+
+    center = (n_pix // 2, n_pix // 2, n_pix // 2)
+    radius = n_pix // 2
+    shape = (n_pix, n_pix, n_pix)
+    for fill in [True, False]:
+        mask = test_ir.binary_mask_3d(
+            center, radius, shape, fill=fill, shell_thickness=1
+        )
+
+        for axis in [0, 1, 2]:
+            circle = mask.sum(axis=axis) > 0
+            circle_to_square_ratio = circle.mean()
+            assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
 
 
 def test_expand_1d_to_3d(test_ir, n_pix):
