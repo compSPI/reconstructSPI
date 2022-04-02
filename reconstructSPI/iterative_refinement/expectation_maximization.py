@@ -306,7 +306,7 @@ class IterativeRefinement:
 
     @staticmethod
     def generate_xy_plane(n_pix):
-        """Generate xy plane.
+        """Generate (x,y,0) plane centered about (0,0,0). 
 
         Parameters
         ----------
