@@ -13,6 +13,7 @@ dependencies:
   - pytest
   - pytest-cov
   - pytorch
+  - scipy
   - pip :
       - git+https://github.com/compSPI/simSPI.git
 

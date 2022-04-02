@@ -1,6 +1,7 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
 import numpy as np
+from scipy.ndimage import map_coordinates
 from simSPI.transfer import eval_ctf
 
 
@@ -349,7 +350,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
         xy_plane : arr
             Array describing xy plane in space.
-            Shape (n_pix**2, 3)
+            Shape (3, n_pix**2)
         n_pix : int
             Number of pixels along one edge of the plane.
         rots : arr
@@ -364,17 +365,19 @@ class IterativeRefinement:
             Shape (n_rotations, n_pix, n_pix)
         xyz_rotated : arr
             Rotated xy planes.
-            Shape (n_rotations, n_pix**2, 3)
+            Shape (n_rotations, 3, n_pix**2)
         """
         n_rotations = rots.shape[0]
         # map_values interpolation, calculate from map, rots
-        map_3d_f = np.ones_like(map_3d_f)
-        xyz_rotated = np.ones_like(xy_plane)
+        slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
+        xy_planes = np.repeat(np.expand_dims(xy_plane, axis=0), n_rotations, axis=0)
+        for i in range(n_rotations):
+            for xy in range(xy_plane.shape[1]):
+                xy_planes[i,:,xy] = rots[i] @ xy_planes[i,:,xy]
+            
+            slices[i] = map_coordinates(map_3d_f, xy_planes[i]).reshape((n_pix, n_pix))
 
-        size = n_rotations * n_pix**2
-        slices = np.random.normal(size=size)
-        slices = slices.reshape((n_rotations, n_pix, n_pix))
-        return slices, xyz_rotated
+        return slices, xy_planes
 
     @staticmethod
     def apply_ctf_to_slice(particle_slice, ctf):
