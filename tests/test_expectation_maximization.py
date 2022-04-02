@@ -104,35 +104,31 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     assert slices.shape == (n_particles, n_pix, n_pix)
     assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
 
-    rot_test_map = np.array([
+    rot_test_map = np.array(
         [
-            [0, 0, 0],
-            [0, 0, 0],
-            [0, 0, 0]
-        ], [
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1]
-        ], [
-            [0, 0, 0],
-            [0, 0, 0],
-            [0, 0, 0]
-        ],
-    ])
+            [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 1, 1], [1, 1, 1], [1, 1, 1]],
+            [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+        ]
+    )
 
-    rot_mat = np.array([[
-        [ 0, 0, 1 ],
-        [ 0, 1, 0 ],
-        [ -1, 0, 0 ]
-    ],])
+    rot_mat = np.array(
+        [
+            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+        ]
+    )
 
-    xy_plane = np.array([
-        [ -1,  0,  1, -1, 0, 1, -1, 0, 1 ],
-        [ -1, -1, -1,  0, 0, 0,  1, 1, 1 ],
-        [  0,  0,  0,  0, 0, 0,  0, 0, 0 ]
-    ])
+    xy_plane = np.array(
+        [
+            [-1, 0, 1, -1, 0, 1, -1, 0, 1],
+            [-1, -1, -1, 0, 0, 0, 1, 1, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ]
+    )
 
-    slices, xyz_rotated_planes = test_ir.generate_slices(rot_test_map, xy_plane, 3, rot_mat)
+    slices, xyz_rotated_planes = test_ir.generate_slices(
+        rot_test_map, xy_plane, 3, rot_mat
+    )
     assert np.allclose(slices[0], np.ones_like(slices[0]))
 
 
