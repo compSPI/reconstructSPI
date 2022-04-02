@@ -1,7 +1,6 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
 import numpy as np
-
 from geomstats.geometry import special_orthogonal
 from simSPI.transfer import eval_ctf
 
@@ -205,7 +204,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -360,7 +359,7 @@ class IterativeRefinement:
         map_3d_f = np.ones_like(map_3d_f)
         xyz_rotated = np.ones_like(xy_plane)
 
-        size = n_rotations * n_pix**2
+        size = n_rotations * n_pix ** 2
         slices = np.random.normal(size=size)
         slices = slices.reshape((n_rotations, n_pix, n_pix))
         return slices, xyz_rotated
