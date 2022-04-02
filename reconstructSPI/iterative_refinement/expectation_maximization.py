@@ -141,12 +141,22 @@ class IterativeRefinement:
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_1[particle_idx], slices_conv_ctfs_1, sigma
                 )
+                print(
+                    "log z_norm_const_1={}, em_loss_1={}".format(
+                        z_norm_const_1, em_loss_1
+                    )
+                )
                 (
                     bayes_factors_2,
                     z_norm_const_2,
                     em_loss_2,
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_2[particle_idx], slices_conv_ctfs_2, sigma
+                )
+                print(
+                    "log z_norm_const_2={}, em_loss_2={}".format(
+                        z_norm_const_2, em_loss_2
+                    )
                 )
 
                 for one_slice_idx in range(bayes_factors_1.shape[0]):
@@ -213,7 +223,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -361,7 +371,7 @@ class IterativeRefinement:
         map_3d_f = np.ones_like(map_3d_f)
         xyz_rotated = np.ones_like(xy_plane)
 
-        size = n_rotations * n_pix**2
+        size = n_rotations * n_pix ** 2
         slices = np.random.normal(size=size)
         slices = slices.reshape((n_rotations, n_pix, n_pix))
         return slices, xyz_rotated
@@ -422,7 +432,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma**2) ** -1)
+        scale = -((2 * sigma ** 2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -540,8 +550,8 @@ class IterativeRefinement:
         a, b, c = center
         nx0, nx1, nx2 = shape
         x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-        r2 = x0**2 + x1**2 + x2**2
-        mask = r2 <= radius**2
+        r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
+        mask = r2 <= radius ** 2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
