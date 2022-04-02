@@ -513,7 +513,7 @@ class IterativeRefinement:
 
     @staticmethod
     def binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1):
-        """Construct a binary spherical shell mask (variable thickness). 
+        """Construct a binary spherical shell mask (variable thickness).
 
         Parameters
         ----------
@@ -567,7 +567,9 @@ class IterativeRefinement:
         arr_3d = np.zeros((n_pix, n_pix, n_pix))
         center = (n_pix // 2, n_pix // 2, n_pix // 2)
         for i in reversed(range(n_pix // 2)):
-            mask = IterativeRefinement.binary_mask_3d(center, i, arr_3d.shape, fill=False)
+            mask = IterativeRefinement.binary_mask_3d(
+                center, i, arr_3d.shape, fill=False
+            )
             arr_3d = np.where(mask, arr_1d[i], arr_3d)
 
         return arr_3d
