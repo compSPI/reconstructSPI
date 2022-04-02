@@ -1,6 +1,8 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
 import numpy as np
+import coords
+
 from simSPI.transfer import eval_ctf
 
 
@@ -321,7 +323,7 @@ class IterativeRefinement:
         # See how meshgrid and generate coordinates functions used
         # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
 
-        xy_plane = np.ones((n_pix * n_pix, 3))
+        xy_plane = coords.coords_n_by_d(np.arange(-n_pix // 2, n_pix // 2), d=3)
         return xy_plane
 
     @staticmethod
