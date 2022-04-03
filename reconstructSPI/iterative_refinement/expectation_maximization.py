@@ -308,6 +308,8 @@ class IterativeRefinement:
     def generate_xy_plane(n_pix):
         """Generate (x,y,0) plane centered about (0,0,0).
 
+        Conventionally: value range [-n // 2, ..., n // 2 - 1]
+
         Parameters
         ----------
         n_pix : int
