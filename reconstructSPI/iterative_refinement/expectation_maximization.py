@@ -1,6 +1,7 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
 import numpy as np
+from geomstats.geometry import special_orthogonal
 from simSPI.transfer import eval_ctf
 
 
@@ -299,6 +300,10 @@ class IterativeRefinement:
     def grid_SO3_uniform(n_rotations):
         """Generate uniformly distributed rotations in SO(3).
 
+        A note on functionality - the geomstats random_uniform library only produces
+        rotations onto one hemisphere. So, the rotations are randomly inverted, giving
+        them equal probability to fall in either hemisphere.
+
         Parameters
         ----------
         n_rotations : int
@@ -310,7 +315,10 @@ class IterativeRefinement:
             Array describing rotations.
             Shape (n_rotations, 3, 3)
         """
-        rots = np.ones((n_rotations, 3, 3))
+        geom = special_orthogonal.SpecialOrthogonal(3, "matrix")
+        rots = geom.random_uniform(n_rotations)
+        negatives = np.tile(np.random.randint(2, size=n_rotations) * 2 - 1, (3, 3, 1)).T
+        rots[:] *= negatives
         return rots
 
     @staticmethod
