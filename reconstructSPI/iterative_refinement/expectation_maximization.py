@@ -141,12 +141,22 @@ class IterativeRefinement:
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_1[particle_idx], slices_conv_ctfs_1, sigma
                 )
+                print(
+                    "log z_norm_const_1={}, em_loss_1={}".format(
+                        z_norm_const_1, em_loss_1
+                    )
+                )
                 (
                     bayes_factors_2,
                     z_norm_const_2,
                     em_loss_2,
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_2[particle_idx], slices_conv_ctfs_2, sigma
+                )
+                print(
+                    "log z_norm_const_2={}, em_loss_2={}".format(
+                        z_norm_const_2, em_loss_2
+                    )
                 )
 
                 for one_slice_idx in range(bayes_factors_1.shape[0]):
@@ -183,7 +193,7 @@ class IterativeRefinement:
             )
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, n_pix)
         map_3d_f_final = (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
         map_3d_r_final = IterativeRefinement.ifft_3d(map_3d_f_final)
         half_map_3d_r_1 = IterativeRefinement.ifft_3d(half_map_3d_f_1)
@@ -236,7 +246,7 @@ class IterativeRefinement:
         """
         fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
 
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, fsc_1d.shape[0])
 
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
@@ -512,22 +522,66 @@ class IterativeRefinement:
         return noise_estimates
 
     @staticmethod
-    def expand_1d_to_3d(arr_1d):
+    def binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1):
+        """Construct a binary spherical shell mask (variable thickness).
+
+        Parameters
+        ----------
+        center : array-like
+            shape (3,)
+            the co-ordinates of the center of the shell.
+        radius : float
+            the radius in pixels of the shell.
+        shape : array-like
+            shape (3,)
+            the shape of the outputted 3D array.
+        fill : bool
+            Whether to output a shell or a solid sphere.
+        shell_thickness : bool
+            If outputting a shell, the shell thickness in pixels.
+
+        Returns
+        -------
+        mask : arr
+            shape == shape
+            An array of bools with "True" where the sphere mask is
+            present.
+        """
+        a, b, c = center
+        nx0, nx1, nx2 = shape
+        x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
+        r2 = x0**2 + x1**2 + x2**2
+        mask = r2 <= radius**2
+        if not fill and radius - shell_thickness > 0:
+            mask_outer = mask
+            mask_inner = r2 <= (radius - shell_thickness) ** 2
+            mask = np.logical_xor(mask_outer, mask_inner)
+        return mask
+
+    @staticmethod
+    def expand_1d_to_3d(arr_1d, n_pix):
         """Expand 1D array data into spherical shell.
 
         Parameters
         ----------
         arr_1d : arr
             Shape (n_pix // 2)
+        n_pix : int
+            Number of pixels in each map dimension
 
         Returns
         -------
         arr_3d : arr
-            Shape (spherical coords)
+            Shape (n_pix, n_pix, n_pix)
         """
-        n_pix = arr_1d.shape[0] * 2
-        arr_3d = np.ones((n_pix, n_pix, n_pix))
-        # arr_1d fsc_1d to 3d (spherical shells)
+        arr_3d = np.zeros((n_pix, n_pix, n_pix))
+        center = (n_pix // 2, n_pix // 2, n_pix // 2)
+        for i in reversed(range(n_pix // 2)):
+            mask = IterativeRefinement.binary_mask_3d(
+                center, i, arr_3d.shape, fill=False
+            )
+            arr_3d = np.where(mask, arr_1d[i], arr_3d)
+
         return arr_3d
 
     @staticmethod
