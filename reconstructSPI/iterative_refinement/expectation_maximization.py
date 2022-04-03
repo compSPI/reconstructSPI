@@ -1,6 +1,7 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
 import numpy as np
+import torch
 from simSPI.transfer import eval_ctf
 
 
@@ -471,7 +472,7 @@ class IterativeRefinement:
         slice_real : float64 arr
             Shape (n_pix, n_pix) the slice of interest.
         xyz : arr
-            Shape (n_pix**2, 3) plane corresponding to slice rotation.
+            Shape (3, n_pix**2) plane corresponding to slice rotation.
         n_pix : int
             Number of pixels.
 
@@ -485,10 +486,10 @@ class IterativeRefinement:
             otherwise 0.
             Shape (n_pix, n_pix, n_pix)
         """
-        shape = xyz.shape[0]
-        count_3d = np.ones((n_pix, n_pix, n_pix))
-        count_3d[0, 0, 0] *= shape
-        inserted_slice_3d = np.ones((n_pix, n_pix, n_pix))
+        inserted_slice_tensor = torch.sparse_coo_tensor(xyz, slice_real.reshape((n_pix**2,), (3, n_pix**2, 1)))
+        count_tensor = torch.sparse_coo_tensor(xyz, np.ones((n_pix**2,)), (3, n_pix**2, 1))
+        inserted_slice_3d = inserted_slice_tensor.coalesce().numpy()
+        count_3d = count_tensor.coalesce().numpy()
         return inserted_slice_3d, count_3d
 
     @staticmethod
