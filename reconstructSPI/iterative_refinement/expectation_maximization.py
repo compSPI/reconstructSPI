@@ -225,7 +225,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -342,7 +342,7 @@ class IterativeRefinement:
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
         grid = np.meshgrid(axis_pts, axis_pts)
 
-        xy_plane = np.zeros((3, n_pix**2))
+        xy_plane = np.zeros((3, n_pix ** 2))
 
         for d in range(2):
             xy_plane[d, :] = grid[d].flatten()
@@ -392,12 +392,26 @@ class IterativeRefinement:
         because some rotations, like a 180 deg in xy-plane rotation,
         do not reach it. It is related to the coordinates going
         from [n_pix/2,n_pix/2-1] and not [n_pix/2,n_pix/2].
+
+        The Fourier transform and rotations commute. The overall scale of
+        the projection does not change under rotation, and thus the dc component,
+        which here corresponds to the origin pixel, should not change locations,
+        under all rotations, and is same is in arr_2d[n/2,n/2].
+        Otherwise by a rotation, the overall scale of the projection changes,
+        which is totally undesirable.
+
+        This makes the "edge effects" of having zeros on an edge after
+        the map_coordinates inevitable. So the tests are a bit awkward when checking
+        that all ones project to a plane of ones. However, one can just add in the
+        edge effect to match the return of generate_slices. In practice real slices
+        will go to zero at the edge, and include masking that crops
+        closer into the centre, keeping a safe distance from the edge.
         """
         n_rotations = rots.shape[0]
         slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
         overwrite_empty_with_zero = 0
         slices[:, :, 0] = overwrite_empty_with_zero
-        xyz_rotated = np.empty((n_rotations, 3, n_pix**2))
+        xyz_rotated = np.empty((n_rotations, 3, n_pix ** 2))
         for i in range(n_rotations):
             xyz_rotated[i] = rots[i] @ xy_plane
 
@@ -463,7 +477,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma**2) ** -1)
+        scale = -((2 * sigma ** 2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -581,8 +595,8 @@ class IterativeRefinement:
         a, b, c = center
         nx0, nx1, nx2 = shape
         x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-        r2 = x0**2 + x1**2 + x2**2
-        mask = r2 <= radius**2
+        r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
+        mask = r2 <= radius ** 2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2

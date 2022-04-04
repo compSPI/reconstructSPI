@@ -113,13 +113,13 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     3. 90-degree rotation test.
     Map has ones in central xz-plane.
     Rotating by -90 degrees about y
-    should produce a slice of ones.
+    should produce a line along the y direction.
 
     4. 180-degree rotation test.
-    Map has ones in central xz-plane.
+    Map has ones in central xy-plane.
     Rotating by 180 degrees about z
     should produce a similar matrix,
-    namely a slice of ones in the -1-line.
+    namely a slice of ones.
     """
     map_3d = np.ones((n_pix, n_pix, n_pix))
     rots = test_ir.grid_SO3_uniform(n_particles)
@@ -138,31 +138,37 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     projected_dc = slices[:, n_pix // 2, n_pix // 2]
     assert np.allclose(projected_dc, expected_dc)
 
-    map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
-    map_plane_ones[n_pix // 2] = np.ones((n_pix, n_pix))
+    map_plane_ones_xzplane = np.zeros((n_pix, n_pix, n_pix))
+    map_plane_ones_xzplane[:, n_pix // 2, :] = 1
+    rad = np.pi / 2
+    c = np.cos(rad)
+    s = np.sin(rad)
     rot_90deg_about_y = np.array(
         [
-            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+            [[c, 0, s], [0, 1, 0], [-s, 0, c]],
         ]
     )
-    all_ones = np.ones_like(slices[0])
+    expected_slice_line_y = np.zeros_like(slices[0])
+    expected_slice_line_y[n_pix // 2] = 1
     map_coordinates_artefact = 0
-    all_ones[:, 0] = map_coordinates_artefact
+    expected_slice_line_y[:, 0] = map_coordinates_artefact
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
+        map_plane_ones_xzplane, xy_plane, n_pix, rot_90deg_about_y
     )
-    assert np.allclose(slices[0], all_ones)
+    assert np.allclose(slices[0], expected_slice_line_y)
 
     rot_180deg_about_z = np.array(
         [
             [[-1, 0, 0], [0, -1, 0], [0, 0, 1]],
         ]
     )
-    expected_slice = np.zeros((n_pix, n_pix))
-    expected_slice[:, n_pix // 2 - 1] = 1
+    map_plane_ones_xyplane = np.zeros((n_pix, n_pix, n_pix))
+    map_plane_ones_xyplane[:, :, n_pix // 2] = 1
+    expected_slice = np.ones((n_pix, n_pix))
+    expected_slice[0, :] = map_coordinates_artefact
     expected_slice[:, 0] = map_coordinates_artefact
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones, xy_plane, n_pix, rot_180deg_about_z
+        map_plane_ones_xyplane, xy_plane, n_pix, rot_180deg_about_z
     )
     assert np.allclose(slices[0], expected_slice)
 
