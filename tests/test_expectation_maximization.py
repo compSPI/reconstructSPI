@@ -180,13 +180,27 @@ def test_apply_wiener_filter(test_ir, n_pix):
 
 
 def test_insert_slice(test_ir, n_pix):
-    """Test insertion of particle slice."""
-    particle_slice = np.ones((n_pix, n_pix))
-    xyz = test_ir.generate_xy_plane(n_pix)
+    """Test insertion of particle slice.
+    
+    Pull a slice out, put it back in. See if it's the same.
+    """
+    xy_plane = test_ir.generate_xy_plane(n_pix)
+    map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
+    map_plane_ones[2] = np.ones((n_pix, n_pix))
 
-    inserted, count = test_ir.insert_slice(particle_slice, xyz, n_pix)
-    assert inserted.shape == (n_pix, n_pix, n_pix)
-    assert count.shape == (n_pix, n_pix, n_pix)
+    rot_90deg_about_y = np.array(
+        [
+            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+        ]
+    )
+
+    slices, xyz_rotated_planes = test_ir.generate_slices(
+        map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
+    )
+
+    inserted, count = test_ir.insert_slice(slices[0], xyz_rotated_planes[0], n_pix)
+    assert np.allclose(inserted, map_plane_ones)
+    assert np.allclose(count, map_plane_ones)
 
 
 def test_compute_fsc(test_ir, n_pix):
