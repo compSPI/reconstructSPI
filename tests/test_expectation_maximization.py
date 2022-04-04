@@ -181,7 +181,7 @@ def test_apply_wiener_filter(test_ir, n_pix):
 
 def test_insert_slice(test_ir, n_pix):
     """Test insertion of particle slice.
-    
+
     Pull a slice out, put it back in. See if it's the same.
     """
     xy_plane = test_ir.generate_xy_plane(n_pix)
