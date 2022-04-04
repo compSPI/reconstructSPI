@@ -123,7 +123,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
 
     assert slices.shape == (n_particles, n_pix, n_pix)
     assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
-    
+
     map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
     map_plane_ones[2] = np.ones((n_pix, n_pix))
 
