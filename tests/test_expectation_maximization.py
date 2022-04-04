@@ -9,7 +9,7 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def n_pix():
     """Get test pixel count for consistency."""
-    return 2
+    return 4
 
 
 @pytest.fixture
@@ -114,8 +114,8 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     # Map has ones in central xz-plane.
     # Rotating by -90 degrees about y
     # should produce a slice of ones.
-    rot_test_map = np.zeros((4, 4, 4))
-    rot_test_map[2] = np.ones((4, 4))
+    rot_test_map = np.zeros((n_pix, n_pix, n_pix))
+    rot_test_map[2] = np.ones((n_pix, n_pix))
 
     rot_mat = np.array(
         [
@@ -123,16 +123,8 @@ def test_generate_slices(test_ir, n_particles, n_pix):
         ]
     )
 
-    xy_plane = np.array(
-        [
-            [-2, -1, 0, 1, -2, -1, 0, 1, -2, -1, 0, 1, -2, -1, 0, 1],
-            [-2, -2, -2, -2, -1, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        ]
-    )
-
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        rot_test_map, xy_plane, 3, rot_mat
+        rot_test_map, xy_plane, n_pix, rot_mat
     )
     assert np.allclose(slices[0], np.ones_like(slices[0]))
     # ---------------------------------
@@ -143,7 +135,6 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     # Rotating by 180 degrees about z
     # should produce a similar matrix,
     # namely a slice of ones in the -1-line.
-    # Inherits same xy_plane from above.
     rot_test_map = np.zeros((4, 4, 4))
     rot_test_map[2] = np.ones((4, 4))
 
@@ -154,10 +145,10 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     )
 
     expected_slice = np.zeros((4, 4))
-    expected_slice[:, 2] = 1
+    expected_slice[:, n_pix - 2 - 1] = 1
 
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        rot_test_map, xy_plane, 3, rot_mat
+        rot_test_map, xy_plane, n_pix, rot_mat
     )
     assert np.allclose(slices[0], expected_slice)
     # ---------------------------------
