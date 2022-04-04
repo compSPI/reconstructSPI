@@ -149,12 +149,15 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     )
     expected_slice_line_y = np.zeros_like(slices[0])
     expected_slice_line_y[n_pix // 2] = 1
-    map_coordinates_artefact = 0
-    expected_slice_line_y[:, 0] = map_coordinates_artefact
+
     slices, xyz_rotated_planes = test_ir.generate_slices(
         map_plane_ones_xzplane, xy_plane, n_pix, rot_90deg_about_y
     )
-    assert np.allclose(slices[0], expected_slice_line_y)
+    omit_idx_artefact = 1
+    assert np.allclose(
+        slices[0, omit_idx_artefact:, omit_idx_artefact:],
+        expected_slice_line_y[omit_idx_artefact:, omit_idx_artefact:],
+    )
 
     rot_180deg_about_z = np.array(
         [
@@ -164,12 +167,13 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     map_plane_ones_xyplane = np.zeros((n_pix, n_pix, n_pix))
     map_plane_ones_xyplane[:, :, n_pix // 2] = 1
     expected_slice = np.ones((n_pix, n_pix))
-    expected_slice[0, :] = map_coordinates_artefact
-    expected_slice[:, 0] = map_coordinates_artefact
     slices, xyz_rotated_planes = test_ir.generate_slices(
         map_plane_ones_xyplane, xy_plane, n_pix, rot_180deg_about_z
     )
-    assert np.allclose(slices[0], expected_slice)
+    assert np.allclose(
+        slices[0, omit_idx_artefact:, omit_idx_artefact:],
+        expected_slice[omit_idx_artefact:, omit_idx_artefact:],
+    )
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
