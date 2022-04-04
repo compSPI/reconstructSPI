@@ -194,7 +194,7 @@ class IterativeRefinement:
             )
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, n_pix)
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
         map_3d_f_final = (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
         map_3d_r_final = IterativeRefinement.ifft_3d(map_3d_f_final)
         half_map_3d_r_1 = IterativeRefinement.ifft_3d(half_map_3d_f_1)
@@ -247,7 +247,7 @@ class IterativeRefinement:
         """
         fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
 
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, fsc_1d.shape[0])
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
 
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
@@ -575,7 +575,7 @@ class IterativeRefinement:
         return mask
 
     @staticmethod
-    def expand_1d_to_3d(arr_1d, n_pix):
+    def expand_1d_to_3d(arr_1d):
         """Expand 1D array data into spherical shell.
 
         Parameters
@@ -589,7 +589,15 @@ class IterativeRefinement:
         -------
         arr_3d : arr
             Shape (n_pix, n_pix, n_pix)
+
+        Note
+        ----
+        Edges arr_3d[0,:,:], arr_3d[:,0,:], arr_3d[:,:,0] are zero.
+        The dc component is not repeated on the left half, because the outer
+        half shell at radius -n_pix/2 does not have a corresponding positive half shell,
+        which only goes up to +n_pix/2 -1.
         """
+        n_pix = 2 * len(arr_1d)
         arr_3d = np.zeros((n_pix, n_pix, n_pix))
         center = (n_pix // 2, n_pix // 2, n_pix // 2)
         for i in reversed(range(n_pix // 2)):

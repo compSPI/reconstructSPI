@@ -9,7 +9,7 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def n_pix():
     """Get test pixel count for consistency."""
-    return 2
+    return 4
 
 
 @pytest.fixture
@@ -271,13 +271,29 @@ def test_binary_mask_3d(test_ir):
 
 def test_expand_1d_to_3d(test_ir, n_pix):
     """Test expansion of 1D array into spherical shell."""
-    arr_1d = np.ones(n_pix // 2)
-    arr_3d = test_ir.expand_1d_to_3d(arr_1d, n_pix)
+    for arr_1d in [np.ones(n_pix // 2), np.arange(n_pix // 2)]:
+        arr_3d = test_ir.expand_1d_to_3d(arr_1d)
 
-    assert arr_3d.shape == (n_pix, n_pix, n_pix)
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2 :, n_pix // 2, n_pix // 2])
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2 :, n_pix // 2])
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2, n_pix // 2 :])
+        assert arr_3d.shape == (n_pix, n_pix, n_pix)
+        assert np.allclose(arr_1d, arr_3d[n_pix // 2 :, n_pix // 2, n_pix // 2])
+        assert np.allclose(arr_1d, arr_3d[n_pix // 2, n_pix // 2 :, n_pix // 2])
+        assert np.allclose(arr_1d, arr_3d[n_pix // 2, n_pix // 2, n_pix // 2 :])
+
+        zeros_2d = np.zeros((n_pix, n_pix))
+        assert np.allclose(zeros_2d, arr_3d[0, :, :])
+        assert np.allclose(zeros_2d, arr_3d[:, 0, :])
+        assert np.allclose(zeros_2d, arr_3d[:, :, 0])
+
+        arr_1d_rev = arr_1d[::-1]
+        assert np.allclose(
+            arr_1d_rev, arr_3d[1 : n_pix // 2 + 1, n_pix // 2, n_pix // 2]
+        )
+        assert np.allclose(
+            arr_1d_rev, arr_3d[n_pix // 2, 1 : n_pix // 2 + 1, n_pix // 2]
+        )
+        assert np.allclose(
+            arr_1d_rev, arr_3d[n_pix // 2, n_pix // 2, 1 : n_pix // 2 + 1]
+        )
 
 
 def test_iterative_refinement(test_ir, n_pix):
