@@ -362,11 +362,20 @@ class IterativeRefinement:
 
         Parameters
         ----------
-        map_3d_f : arr
+        map_3d_f : arr, float (not complex)
             Shape (n_pix, n_pix, n_pix)
+            Convention x,y,z, with
+                -n_pix/2,-n_pix/2,-n_pix/2 pixel at map_3d_f[0,0,0],
+                0,0,0 pixel at map_3d_f[n/2,n/2,n/2]
+                n_pix/2-1,n_pix/2-1,n_pix/2-1 pixel at the final corner,
+                    i.e. map_3d_f[n_pix-1,n_pix-1,n_pix-1]
         xy_plane : arr
             Array describing xy plane in space.
             Shape (3, n_pix**2)
+            Convention x,y,z, i.e.
+                xy_plane[0] is x coordinate
+                xy_plane[1] is y coordinate
+                xy_plane[2] is z coordinate, which is all zero
         n_pix : int
             Number of pixels along one edge of the plane.
         rots : arr
@@ -382,12 +391,41 @@ class IterativeRefinement:
         xyz_rotated : arr
             Rotated xy planes.
             Shape (n_rotations, 3, n_pix**2)
+
+
+        Notes
+        -----
+        The coordinates are not centered, and the origin/dc component
+        is in map_coordinates. This results in an artefact where the
+        first column of slices[i] is not (always) interpolated,
+        because some rotations, like a 180 deg in xy-plane rotation,
+        do not reach it. It is related to the coordinates going
+        from [n_pix/2,n_pix/2-1] and not [n_pix/2,n_pix/2].
+
+        The Fourier transform and rotations commute. The overall scale of
+        the projection does not change under rotation, and thus the dc component,
+        which here corresponds to the origin pixel, should not change locations,
+        under all rotations, and is same is in arr_2d[n/2,n/2].
+        Otherwise by a rotation, the overall scale of the projection changes,
+        which is totally undesirable.
+
+        This makes the "edge effects" of (possibly) having zeros in the values of
+        map_coordinates corresponding to -n/2 xyz coordinates after rotation,
+        i.e. map_coordinates[0,:,:], map_coordinates[:,0,:] and map_coordinates[:,:,0],
+        which correspond to slices[0,:], slices[:,0].
+        This behaviour should be anticipated.
+        In practice real slices will come from a map_3d_f that goes to zero at the edge,
+        and the slices will also go to zero at the edge.
+        As far as the presence of noise in the edge pixels, masking that crops
+        close enough to the centre will keeping a safe distance from the edge.
         """
         n_rotations = rots.shape[0]
         slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
+        overwrite_empty_with_zero = 0
+        slices[:, :, 0] = overwrite_empty_with_zero
         xyz_rotated = np.empty((n_rotations, 3, n_pix**2))
         for i in range(n_rotations):
-            xyz_rotated[i] = rots[i] @ (xy_plane + 0.5) - 0.5
+            xyz_rotated[i] = rots[i] @ xy_plane
 
             slices[i] = map_coordinates(map_3d_f, xyz_rotated[i] + n_pix // 2).reshape(
                 (n_pix, n_pix)
