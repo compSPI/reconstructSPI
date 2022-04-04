@@ -106,12 +106,16 @@ def test_generate_xy_plane(test_ir, n_pix):
 def test_generate_slices(test_ir, n_particles, n_pix):
     """Test generation of slices.
 
-    90-degree rotation test.
+    1. shape test.
+
+    2. dc component test. DC component should not change after any rotation.
+
+    3. 90-degree rotation test.
     Map has ones in central xz-plane.
     Rotating by -90 degrees about y
     should produce a slice of ones.
 
-    180-degree rotation test.
+    4. 180-degree rotation test.
     Map has ones in central xz-plane.
     Rotating by 180 degrees about z
     should produce a similar matrix,
@@ -124,6 +128,16 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     assert slices.shape == (n_particles, n_pix, n_pix)
     assert xyz_rotated_planes.shape == (n_particles, 3, n_pix ** 2)
 
+    map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
+    rand_val = np.random.random_uniform(low=1, high=2)
+    map_3d_dc[n_pix // 2, n_pix // 2, n_pix // 2] = rand_val
+    slices, xyz_rotated_planes = test_ir.generate_slices(
+        map_3d_dc, xy_plane, n_pix, rots
+    )
+    assert np.allclose(
+        slices[:, n_pix // 2, n_pix // 2], rand_val * np.ones(len(slices))
+    )
+
     map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
     map_plane_ones[n_pix // 2] = np.ones((n_pix, n_pix))
     rot_90deg_about_y = np.array(
@@ -133,7 +147,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     )
     all_ones = np.ones_like(slices[0])
     map_coordinates_artefact = 0
-    all_ones[0, :] = map_coordinates_artefact
+    all_ones[:, 0] = map_coordinates_artefact
     slices, xyz_rotated_planes = test_ir.generate_slices(
         map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
     )
@@ -146,18 +160,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     )
     expected_slice = np.zeros((n_pix, n_pix))
     expected_slice[:, n_pix // 2 - 1] = 1
-    expected_slice[0, :] = map_coordinates_artefact
+    expected_slice[:, 0] = map_coordinates_artefact
     slices, xyz_rotated_planes = test_ir.generate_slices(
         map_plane_ones, xy_plane, n_pix, rot_180deg_about_z
     )
     assert np.allclose(slices[0], expected_slice)
-
-    map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
-    map_3d_dc[n_pix // 2, n_pix // 2, n_pix // 2] = 1
-    slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
-    )
-    assert np.allclose(slices[:, n_pix // 2, n_pix // 2], np.ones(len(slices)))
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
