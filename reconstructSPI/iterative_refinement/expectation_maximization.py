@@ -597,7 +597,7 @@ class IterativeRefinement:
         half shell at radius -n_pix/2 does not have a corresponding positive half shell,
         which only goes up to +n_pix/2 -1.
         """
-        n_pix = len(arr_1d)
+        n_pix = 2 * len(arr_1d)
         arr_3d = np.zeros((n_pix, n_pix, n_pix))
         center = (n_pix // 2, n_pix // 2, n_pix // 2)
         for i in reversed(range(n_pix // 2)):
