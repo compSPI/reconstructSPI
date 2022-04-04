@@ -9,7 +9,9 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def n_pix():
     """Get test pixel count for consistency."""
-    return np.random.randint(1, 11) * 2
+    n_pix_half_max = 8
+    n_pix_half_min = 2
+    return np.random.randint(n_pix_half_min, n_pix_half_max + 1) * 2
 
 
 @pytest.fixture
@@ -152,12 +154,19 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     expected_slice[:, n_pix // 2 - 1] = 1
 
     expected_slice[0, :] = map_coordinates_artefact
-    expected_slice[:, 0] = map_coordinates_artefact
+    # expected_slice[:, 0] = map_coordinates_artefact
 
     slices, xyz_rotated_planes = test_ir.generate_slices(
         map_plane_ones, xy_plane, n_pix, rot_180deg_about_z
     )
     assert np.allclose(slices[0], expected_slice)
+
+    map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
+    map_3d_dc[n_pix // 2, n_pix // 2, n_pix // 2] = 1
+    slices, xyz_rotated_planes = test_ir.generate_slices(
+        map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
+    )
+    assert np.allclose(slices[:, n_pix // 2, n_pix // 2], np.ones(len(slices)))
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
