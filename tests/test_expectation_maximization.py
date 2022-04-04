@@ -102,8 +102,8 @@ def test_generate_xy_plane(test_ir, n_pix):
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
-    """Test generation of slices. 
-    
+    """Test generation of slices.
+
     90-degree rotation test.
     Map has ones in central xz-plane.
     Rotating by -90 degrees about y
@@ -134,7 +134,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
         map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
     )
     assert np.allclose(slices[0], np.ones_like(slices[0]))
-    
+
     map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
     map_plane_ones[2] = np.ones((n_pix, n_pix))
 
