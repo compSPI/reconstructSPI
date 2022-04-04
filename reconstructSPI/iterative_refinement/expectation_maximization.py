@@ -2,6 +2,8 @@
 
 import numpy as np
 import torch
+from geomstats.geometry import special_orthogonal
+from scipy.ndimage import map_coordinates
 from simSPI.transfer import eval_ctf
 
 
@@ -194,7 +196,7 @@ class IterativeRefinement:
             )
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, n_pix)
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
         map_3d_f_final = (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
         map_3d_r_final = IterativeRefinement.ifft_3d(map_3d_f_final)
         half_map_3d_r_1 = IterativeRefinement.ifft_3d(half_map_3d_f_1)
@@ -247,7 +249,7 @@ class IterativeRefinement:
         """
         fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
 
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, fsc_1d.shape[0])
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
 
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
@@ -300,6 +302,10 @@ class IterativeRefinement:
     def grid_SO3_uniform(n_rotations):
         """Generate uniformly distributed rotations in SO(3).
 
+        A note on functionality - the geomstats random_uniform library only produces
+        rotations onto one hemisphere. So, the rotations are randomly inverted, giving
+        them equal probability to fall in either hemisphere.
+
         Parameters
         ----------
         n_rotations : int
@@ -311,12 +317,17 @@ class IterativeRefinement:
             Array describing rotations.
             Shape (n_rotations, 3, 3)
         """
-        rots = np.ones((n_rotations, 3, 3))
+        geom = special_orthogonal.SpecialOrthogonal(3, "matrix")
+        rots = geom.random_uniform(n_rotations)
+        negatives = np.tile(np.random.randint(2, size=n_rotations) * 2 - 1, (3, 3, 1)).T
+        rots[:] *= negatives
         return rots
 
     @staticmethod
     def generate_xy_plane(n_pix):
-        """Generate xy plane.
+        """Generate (x,y,0) plane.
+
+        x, y axis values range [-n // 2, ..., n // 2 - 1]
 
         Parameters
         ----------
@@ -327,22 +338,28 @@ class IterativeRefinement:
         -------
         xy_plane : arr
             Array describing xy plane in space.
-            Shape (n_pix, n_pix, 3)
+            Shape (3, n_pix**2)
         """
-        # See how meshgrid and generate coordinates functions used
-        # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
+        axis_pts = np.arange(-n_pix // 2, n_pix // 2)
+        grid = np.meshgrid(axis_pts, axis_pts)
 
-        xy_plane = np.ones((n_pix * n_pix, 3))
+        xy_plane = np.zeros((3, n_pix**2))
+
+        for d in range(2):
+            xy_plane[d, :] = grid[d].flatten()
+
         return xy_plane
 
     @staticmethod
     def generate_slices(map_3d_f, xy_plane, n_pix, rots):
         """Generate slice coordinates by rotating xy plane.
 
-                Interpolate values from map_3d_f onto 3D coordinates.
+        Interpolate values from map_3d_f onto 3D coordinates.
 
-        See how scipy map_values used to interpolate in
-        https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L111
+
+        Shift the space into a centered position before rotating and
+        revert shift after rotation. This preserves the bounds of the
+        space.
 
         Parameters
         ----------
@@ -350,12 +367,12 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
         xy_plane : arr
             Array describing xy plane in space.
-            Shape (n_pix**2, 3)
+            Shape (3, n_pix**2)
         n_pix : int
             Number of pixels along one edge of the plane.
         rots : arr
             Array describing rotations.
-            Shape (n_rotations, 3, 3)
+            Shape (n_rotations, n_pix**2, 3)
 
         Returns
         -------
@@ -364,17 +381,19 @@ class IterativeRefinement:
             of projection of rotated map_3d_f.
             Shape (n_rotations, n_pix, n_pix)
         xyz_rotated : arr
-            Rotated xy plane.
-            Shape (n_pix**2, 3)
+            Rotated xy planes.
+            Shape (n_rotations, 3, n_pix**2)
         """
         n_rotations = rots.shape[0]
-        # map_values interpolation, calculate from map, rots
-        map_3d_f = np.ones_like(map_3d_f)
-        xyz_rotated = np.ones_like(xy_plane)
+        slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
+        xyz_rotated = np.empty((n_rotations, 3, n_pix**2))
+        for i in range(n_rotations):
+            xyz_rotated[i] = rots[i] @ (xy_plane + 0.5) - 0.5
 
-        size = n_rotations * n_pix**2
-        slices = np.random.normal(size=size)
-        slices = slices.reshape((n_rotations, n_pix, n_pix))
+            slices[i] = map_coordinates(map_3d_f, xyz_rotated[i] + n_pix // 2).reshape(
+                (n_pix, n_pix)
+            )
+
         return slices, xyz_rotated
 
     @staticmethod
@@ -560,21 +579,27 @@ class IterativeRefinement:
         return mask
 
     @staticmethod
-    def expand_1d_to_3d(arr_1d, n_pix):
+    def expand_1d_to_3d(arr_1d):
         """Expand 1D array data into spherical shell.
 
         Parameters
         ----------
         arr_1d : arr
             Shape (n_pix // 2)
-        n_pix : int
-            Number of pixels in each map dimension
 
         Returns
         -------
         arr_3d : arr
             Shape (n_pix, n_pix, n_pix)
+
+        Note
+        ----
+        Edges arr_3d[0,:,:], arr_3d[:,0,:], arr_3d[:,:,0] are zero.
+        The dc component is not repeated on the left half, because the outer
+        half shell at radius -n_pix/2 does not have a corresponding positive half shell,
+        which only goes up to +n_pix/2 -1.
         """
+        n_pix = 2 * len(arr_1d)
         arr_3d = np.zeros((n_pix, n_pix, n_pix))
         center = (n_pix // 2, n_pix // 2, n_pix // 2)
         for i in reversed(range(n_pix // 2)):

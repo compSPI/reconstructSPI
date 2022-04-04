@@ -9,7 +9,7 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def n_pix():
     """Get test pixel count for consistency."""
-    return 2
+    return np.random.randint(1, 11) * 2
 
 
 @pytest.fixture
@@ -90,20 +90,67 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_xy_plane(test_ir, n_pix):
     """Test generation of xy plane."""
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    assert xy_plane.shape == (n_pix**2, 3)
+    assert xy_plane.shape == (3, n_pix**2)
+
+    n_pix_2 = 2
+    plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
+
+    xy_plane = test_ir.generate_xy_plane(n_pix_2)
+    assert np.allclose(xy_plane, plane_2)
+    assert np.isclose(xy_plane.max(), n_pix_2 // 2 - 1)
+    assert np.isclose(xy_plane.min(), -n_pix_2 // 2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
-    """Test generation of slices."""
+    """Test generation of slices.
+
+    90-degree rotation test.
+    Map has ones in central xz-plane.
+    Rotating by -90 degrees about y
+    should produce a slice of ones.
+
+    180-degree rotation test.
+    Map has ones in central xz-plane.
+    Rotating by 180 degrees about z
+    should produce a similar matrix,
+    namely a slice of ones in the -1-line.
+    """
     map_3d = np.ones((n_pix, n_pix, n_pix))
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_xy_plane(n_pix)
 
-    slices, xyz_rotated = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
+    slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
 
-    assert xy_plane.shape == (n_pix**2, 3)
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated.shape == (n_pix**2, 3)
+    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
+
+    map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
+    map_plane_ones[n_pix // 2] = np.ones((n_pix, n_pix))
+
+    rot_90deg_about_y = np.array(
+        [
+            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+        ]
+    )
+
+    slices, xyz_rotated_planes = test_ir.generate_slices(
+        map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
+    )
+    assert np.allclose(slices[0], np.ones_like(slices[0]))
+
+    rot_180deg_about_z = np.array(
+        [
+            [[-1, 0, 0], [0, -1, 0], [0, 0, 1]],
+        ]
+    )
+
+    expected_slice = np.zeros((n_pix, n_pix))
+    expected_slice[:, n_pix // 2 - 1] = 1
+
+    slices, xyz_rotated_planes = test_ir.generate_slices(
+        map_plane_ones, xy_plane, n_pix, rot_180deg_about_z
+    )
+    assert np.allclose(slices[0], expected_slice)
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
@@ -278,13 +325,29 @@ def test_binary_mask_3d(test_ir):
 
 def test_expand_1d_to_3d(test_ir, n_pix):
     """Test expansion of 1D array into spherical shell."""
-    arr_1d = np.ones(n_pix // 2)
-    arr_3d = test_ir.expand_1d_to_3d(arr_1d, n_pix)
+    for arr_1d in [np.ones(n_pix // 2), np.arange(n_pix // 2)]:
+        arr_3d = test_ir.expand_1d_to_3d(arr_1d)
 
-    assert arr_3d.shape == (n_pix, n_pix, n_pix)
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2 :, n_pix // 2, n_pix // 2])
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2 :, n_pix // 2])
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2, n_pix // 2 :])
+        assert arr_3d.shape == (n_pix, n_pix, n_pix)
+        assert np.allclose(arr_1d, arr_3d[n_pix // 2 :, n_pix // 2, n_pix // 2])
+        assert np.allclose(arr_1d, arr_3d[n_pix // 2, n_pix // 2 :, n_pix // 2])
+        assert np.allclose(arr_1d, arr_3d[n_pix // 2, n_pix // 2, n_pix // 2 :])
+
+        zeros_2d = np.zeros((n_pix, n_pix))
+        assert np.allclose(zeros_2d, arr_3d[0, :, :])
+        assert np.allclose(zeros_2d, arr_3d[:, 0, :])
+        assert np.allclose(zeros_2d, arr_3d[:, :, 0])
+
+        arr_1d_rev = arr_1d[::-1]
+        assert np.allclose(
+            arr_1d_rev, arr_3d[1 : n_pix // 2 + 1, n_pix // 2, n_pix // 2]
+        )
+        assert np.allclose(
+            arr_1d_rev, arr_3d[n_pix // 2, 1 : n_pix // 2 + 1, n_pix // 2]
+        )
+        assert np.allclose(
+            arr_1d_rev, arr_3d[n_pix // 2, n_pix // 2, 1 : n_pix // 2 + 1]
+        )
 
 
 def test_iterative_refinement(test_ir, n_pix):
