@@ -122,7 +122,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
 
     rot_mat = np.array(
         [
-            [[0, 0, -1], [0, 1, 0], [1, 0, 0]],
+            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
         ]
     )
 
