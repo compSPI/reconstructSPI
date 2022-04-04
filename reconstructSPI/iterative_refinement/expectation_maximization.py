@@ -342,10 +342,10 @@ class IterativeRefinement:
 
         Interpolate values from map_3d_f onto 3D coordinates.
 
-                
-        Shift the space into a centered position before rotating and 
-        revert shift after rotation. This preserves the bounds of the 
-        space. 
+
+        Shift the space into a centered position before rotating and
+        revert shift after rotation. This preserves the bounds of the
+        space.
 
         Parameters
         ----------
