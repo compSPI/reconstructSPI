@@ -372,15 +372,15 @@ class IterativeRefinement:
         """
         n_rotations = rots.shape[0]
         slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
-        xy_planes = np.empty((n_rotations, n_pix**2, 3))
+        xyz_rotated = np.empty((n_rotations, n_pix**2, 3))
         for i in range(n_rotations):
-            xy_planes[i] = rots[i] @ (xy_plane + 0.5) - 0.5
+            xyz_rotated[i] = rots[i] @ (xy_plane + 0.5) - 0.5
 
-            slices[i] = map_coordinates(map_3d_f, xy_planes[i] + n_pix // 2).reshape(
+            slices[i] = map_coordinates(map_3d_f, xyz_rotated[i] + n_pix // 2).reshape(
                 (n_pix, n_pix)
             )
 
-        return slices, xy_planes
+        return slices, xyz_rotated
 
     @staticmethod
     def apply_ctf_to_slice(particle_slice, ctf):
