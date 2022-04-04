@@ -322,9 +322,9 @@ class IterativeRefinement:
         """
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
         grid = np.meshgrid(axis_pts, axis_pts)
-    
+
         xy_plane = np.zeros((n_pix**2, 3))
-    
+
         for d in range(2):
             xy_plane[:, d] = grid[d].flatten()
 
