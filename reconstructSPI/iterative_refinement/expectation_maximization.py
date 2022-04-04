@@ -191,7 +191,7 @@ class IterativeRefinement:
                 )
 
             half_map_3d_f_1, half_map_3d_f_2 = IterativeRefinement.apply_noise_model(
-                map_3d_f_norm_1, map_3d_f_norm_2, n_pix
+                map_3d_f_norm_1, map_3d_f_norm_2
             )
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
@@ -228,7 +228,7 @@ class IterativeRefinement:
         return map_3d * counts / (norm_const + counts**2)
 
     @staticmethod
-    def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2, n_pix):
+    def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
         """Apply noise model to normalized maps in fourier space.
 
         Parameters
@@ -239,8 +239,6 @@ class IterativeRefinement:
         map_3d_f_norm_2 : arr
             Shape (n_pix, n_pix, n_pix)
             Normalized fourier space half-map 2.
-        n_pix : int
-            Number of pixels along one edge of the plane.
 
         Returns
         -------
@@ -250,7 +248,7 @@ class IterativeRefinement:
         """
         fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
 
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, n_pix)
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
 
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
@@ -580,21 +578,20 @@ class IterativeRefinement:
         return mask
 
     @staticmethod
-    def expand_1d_to_3d(arr_1d, n_pix):
+    def expand_1d_to_3d(arr_1d):
         """Expand 1D array data into spherical shell.
 
         Parameters
         ----------
         arr_1d : arr
             Shape (n_pix // 2)
-        n_pix : int
-            Number of pixels in each map dimension
 
         Returns
         -------
         arr_3d : arr
             Shape (n_pix, n_pix, n_pix)
         """
+        n_pix = arr_1d.shape[0] * 2
         arr_3d = np.zeros((n_pix, n_pix, n_pix))
         center = (n_pix // 2, n_pix // 2, n_pix // 2)
         for i in reversed(range(n_pix // 2)):
