@@ -95,8 +95,9 @@ class IterativeRefinement:
             self.map_3d_init.copy(),
         )
 
-        half_map_3d_f_1 = primal_to_fourier_3D(half_map_3d_r_1)
-        half_map_3d_f_2 = primal_to_fourier_3D(half_map_3d_r_2)
+        shape = (1, n_pix, n_pix, n_pix)
+        half_map_3d_f_1 = primal_to_fourier_3D(half_map_3d_r_1.reshape(shape))
+        half_map_3d_f_2 = primal_to_fourier_3D(half_map_3d_r_2.reshape(shape))
 
         for _ in range(self.max_itr):
 

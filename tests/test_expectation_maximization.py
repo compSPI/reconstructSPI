@@ -191,7 +191,7 @@ def test_compute_fsc(test_ir, n_pix):
 def test_expand_1d_to_3d(test_ir, n_pix):
     """Test expansion of 1D array into spherical shell."""
     arr1d = np.ones(n_pix // 2)
-    spherical = test_ir.expand_1d_to_3d(arr1d)
+    spherical = test_ir.expand_1d_to_3d(arr1d, n_pix)
 
     assert spherical.shape == (n_pix, n_pix, n_pix)
 
