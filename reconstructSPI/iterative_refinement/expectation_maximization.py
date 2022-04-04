@@ -1,8 +1,8 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
-import coords
 import numpy as np
 from scipy.ndimage import map_coordinates
+from geomstats.geometry import special_orthogonal
 from simSPI.transfer import eval_ctf
 
 
@@ -301,6 +301,10 @@ class IterativeRefinement:
     def grid_SO3_uniform(n_rotations):
         """Generate uniformly distributed rotations in SO(3).
 
+        A note on functionality - the geomstats random_uniform library only produces
+        rotations onto one hemisphere. So, the rotations are randomly inverted, giving
+        them equal probability to fall in either hemisphere.
+
         Parameters
         ----------
         n_rotations : int
@@ -312,12 +316,17 @@ class IterativeRefinement:
             Array describing rotations.
             Shape (n_rotations, 3, 3)
         """
-        rots = np.ones((n_rotations, 3, 3))
+        geom = special_orthogonal.SpecialOrthogonal(3, "matrix")
+        rots = geom.random_uniform(n_rotations)
+        negatives = np.tile(np.random.randint(2, size=n_rotations) * 2 - 1, (3, 3, 1)).T
+        rots[:] *= negatives
         return rots
 
     @staticmethod
     def generate_xy_plane(n_pix):
         """Generate (x,y,0) plane centered about (0,0,0).
+
+        Conventionally: value range [-n // 2, ..., n // 2 - 1]
 
         Parameters
         ----------
@@ -330,11 +339,15 @@ class IterativeRefinement:
             Array describing xy plane in space.
             Shape (3, n_pix**2)
         """
-        # See geoff's meshgrid and generate coordinates functions used
-        # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
+        axis_pts = np.arange(-n_pix // 2, n_pix // 2)
+        grid = np.meshgrid(axis_pts, axis_pts)
 
-        xy_plane = coords.coords_n_by_d(np.arange(-n_pix // 2, n_pix // 2), d=3)
-        return xy_plane
+        xy_plane = np.zeros((n_pix**2, 3))
+
+        for d in range(2):
+            xy_plane[:, d] = grid[d].flatten()
+
+        return xy_plane.T
 
     @staticmethod
     def generate_slices(map_3d_f, xy_plane, n_pix, rots):

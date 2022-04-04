@@ -4,7 +4,6 @@ channels:
   - defaults
 dependencies:
   - codecov
-  - coords
   - coverage
   - gemmi
   - numpy
@@ -17,4 +16,5 @@ dependencies:
   - scipy
   - pip :
       - git+https://github.com/compSPI/simSPI.git
+      - geomstats
 
