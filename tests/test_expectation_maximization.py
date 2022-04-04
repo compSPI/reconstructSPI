@@ -102,8 +102,8 @@ def test_generate_xy_plane(test_ir, n_pix):
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
-    """Test generation of slices. 
-    
+    """Test generation of slices.
+
     90-degree rotation test.
     Map has ones in central xz-plane.
     Rotating by -90 degrees about y
