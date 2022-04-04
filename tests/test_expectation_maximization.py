@@ -122,7 +122,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
 
     # ---------------------------------
     # 90-degree rotation test.
-    # Map has ones in central xz-plane. 
+    # Map has ones in central xz-plane.
     # Rotating by -90 degrees about y
     # should produce a slice of ones.
     rot_test_map = np.zeros((4, 4, 4))
@@ -134,11 +134,13 @@ def test_generate_slices(test_ir, n_particles, n_pix):
         ]
     )
 
-    xy_plane = np.array([
-        [ -2, -1,  0,  1, -2, -1,  0,  1, -2, -1, 0, 1, -2, -1, 0, 1 ],
-        [ -2, -2, -2, -2, -1, -1, -1, -1,  0,  0, 0, 0,  1,  1, 1, 1 ],
-        [  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0, 0,  0,  0, 0, 0 ]
-    ])
+    xy_plane = np.array(
+        [
+            [-2, -1, 0, 1, -2, -1, 0, 1, -2, -1, 0, 1, -2, -1, 0, 1],
+            [-2, -2, -2, -2, -1, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ]
+    )
 
     slices, xyz_rotated_planes = test_ir.generate_slices(
         rot_test_map, xy_plane, 3, rot_mat
@@ -148,11 +150,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
 
     # ---------------------------------
     # 180-degree rotation test.
-    # Map has ones in central xz-plane. 
+    # Map has ones in central xz-plane.
     # Rotating by 180 degrees about z
     # should produce a similar matrix,
     # namely a slice of ones in the -1-line.
-    # Inherits same xy_plane from above. 
+    # Inherits same xy_plane from above.
     rot_test_map = np.zeros((4, 4, 4))
     rot_test_map[2] = np.ones((4, 4))
 
@@ -163,7 +165,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     )
 
     expected_slice = np.zeros((4, 4))
-    expected_slice[:,2] = 1
+    expected_slice[:, 2] = 1
 
     slices, xyz_rotated_planes = test_ir.generate_slices(
         rot_test_map, xy_plane, 3, rot_mat
