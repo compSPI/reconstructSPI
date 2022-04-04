@@ -9,7 +9,7 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def n_pix():
     """Get test pixel count for consistency."""
-    return 4
+    return np.random.randint(1, 11) * 2
 
 
 @pytest.fixture
@@ -102,15 +102,55 @@ def test_generate_xy_plane(test_ir, n_pix):
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
-    """Test generation of slices."""
+    """Test generation of slices.
+
+    90-degree rotation test.
+    Map has ones in central xz-plane.
+    Rotating by -90 degrees about y
+    should produce a slice of ones.
+
+    180-degree rotation test.
+    Map has ones in central xz-plane.
+    Rotating by 180 degrees about z
+    should produce a similar matrix,
+    namely a slice of ones in the -1-line.
+    """
     map_3d = np.ones((n_pix, n_pix, n_pix))
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_xy_plane(n_pix)
 
-    slices, xyz_rotated = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
+    slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
 
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated.shape == (n_particles, 3, n_pix**2)
+    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
+
+    map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
+    map_plane_ones[n_pix // 2] = np.ones((n_pix, n_pix))
+
+    rot_90deg_about_y = np.array(
+        [
+            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+        ]
+    )
+
+    slices, xyz_rotated_planes = test_ir.generate_slices(
+        map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
+    )
+    assert np.allclose(slices[0], np.ones_like(slices[0]))
+
+    rot_180deg_about_z = np.array(
+        [
+            [[-1, 0, 0], [0, -1, 0], [0, 0, 1]],
+        ]
+    )
+
+    expected_slice = np.zeros((n_pix, n_pix))
+    expected_slice[:, n_pix // 2 - 1] = 1
+
+    slices, xyz_rotated_planes = test_ir.generate_slices(
+        map_plane_ones, xy_plane, n_pix, rot_180deg_about_z
+    )
+    assert np.allclose(slices[0], expected_slice)
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):

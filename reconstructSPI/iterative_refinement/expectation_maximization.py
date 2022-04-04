@@ -2,6 +2,7 @@
 
 import numpy as np
 from geomstats.geometry import special_orthogonal
+from scipy.ndimage import map_coordinates
 from simSPI.transfer import eval_ctf
 
 
@@ -352,10 +353,12 @@ class IterativeRefinement:
     def generate_slices(map_3d_f, xy_plane, n_pix, rots):
         """Generate slice coordinates by rotating xy plane.
 
-                Interpolate values from map_3d_f onto 3D coordinates.
+        Interpolate values from map_3d_f onto 3D coordinates.
 
-        See how scipy map_values used to interpolate in
-        https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L111
+
+        Shift the space into a centered position before rotating and
+        revert shift after rotation. This preserves the bounds of the
+        space.
 
         Parameters
         ----------
@@ -368,7 +371,7 @@ class IterativeRefinement:
             Number of pixels along one edge of the plane.
         rots : arr
             Array describing rotations.
-            Shape (n_rotations, 3, 3)
+            Shape (n_rotations, n_pix**2, 3)
 
         Returns
         -------
@@ -377,19 +380,19 @@ class IterativeRefinement:
             of projection of rotated map_3d_f.
             Shape (n_rotations, n_pix, n_pix)
         xyz_rotated : arr
-            Rotated xy plane.
+            Rotated xy planes.
             Shape (n_rotations, 3, n_pix**2)
         """
         n_rotations = rots.shape[0]
-        # map_values interpolation, calculate from map, rots
-        map_3d_f = np.ones_like(map_3d_f)
-        xyz_rotated = np.repeat(
-            np.expand_dims(np.ones_like(xy_plane), axis=0), n_rotations, axis=0
-        )
+        slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
+        xyz_rotated = np.empty((n_rotations, 3, n_pix**2))
+        for i in range(n_rotations):
+            xyz_rotated[i] = rots[i] @ (xy_plane + 0.5) - 0.5
 
-        size = n_rotations * n_pix**2
-        slices = np.random.normal(size=size)
-        slices = slices.reshape((n_rotations, n_pix, n_pix))
+            slices[i] = map_coordinates(map_3d_f, xyz_rotated[i] + n_pix // 2).reshape(
+                (n_pix, n_pix)
+            )
+
         return slices, xyz_rotated
 
     @staticmethod
@@ -582,8 +585,6 @@ class IterativeRefinement:
         ----------
         arr_1d : arr
             Shape (n_pix // 2)
-        n_pix : int
-            Number of pixels in each map dimension
 
         Returns
         -------
