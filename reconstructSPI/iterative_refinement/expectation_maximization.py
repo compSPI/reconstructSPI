@@ -324,9 +324,9 @@ class IterativeRefinement:
 
     @staticmethod
     def generate_xy_plane(n_pix):
-        """Generate (x,y,0) plane centered about (0,0,0).
+        """Generate (x,y,0) plane.
 
-        Conventionally: value range [-n // 2, ..., n // 2 - 1]
+        x, y axis values range [-n // 2, ..., n // 2 - 1]
 
         Parameters
         ----------
@@ -342,12 +342,12 @@ class IterativeRefinement:
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
         grid = np.meshgrid(axis_pts, axis_pts)
 
-        xy_plane = np.zeros((n_pix**2, 3))
+        xy_plane = np.zeros((3, n_pix**2))
 
         for d in range(2):
-            xy_plane[:, d] = grid[d].flatten()
+            xy_plane[d, :] = grid[d].flatten()
 
-        return xy_plane.T
+        return xy_plane
 
     @staticmethod
     def generate_slices(map_3d_f, xy_plane, n_pix, rots):
