@@ -364,9 +364,18 @@ class IterativeRefinement:
         ----------
         map_3d_f : arr, float (not complex)
             Shape (n_pix, n_pix, n_pix)
+            Convention x,y,z, with
+                -n_pix/2,-n_pix/2,-n_pix/2 pixel at map_3d_f[0,0,0],
+                0,0,0 pixel at map_3d_f[n/2,n/2,n/2]
+                n_pix/2-1,n_pix/2-1,n_pix/2-1 pixel at the final corner,
+                    i.e. map_3d_f[n_pix-1,n_pix-1,n_pix-1]
         xy_plane : arr
             Array describing xy plane in space.
             Shape (3, n_pix**2)
+            Convention x,y,z, i.e.
+                xy_plane[0] is x coordinate
+                xy_plane[1] is y coordinate
+                xy_plane[2] is z coordinate, which is all zero
         n_pix : int
             Number of pixels along one edge of the plane.
         rots : arr
