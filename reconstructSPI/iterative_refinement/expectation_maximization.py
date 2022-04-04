@@ -80,12 +80,17 @@ class IterativeRefinement:
             Shape (n_pix // 2,)
         """
         particles_1, particles_2 = IterativeRefinement.split_array(self.particles)
+        n_pix = self.map_3d_init.shape[0]
 
         ctfs = self.build_ctf_array()
         ctfs_1, ctfs_2 = IterativeRefinement.split_array(ctfs)
 
-        particles_f_1 = primal_to_fourier_2D(particles_1)
-        particles_f_2 = primal_to_fourier_2D(particles_2)
+        particles_f_1 = primal_to_fourier_2D(
+            torch.from_numpy(particles_1.reshape((1, 1, n_pix, n_pix)))
+        )
+        particles_f_2 = primal_to_fourier_2D(
+            torch.from_numpy(particles_2.reshape((1, 1, n_pix, n_pix)))
+        )
 
         n_pix = self.map_3d_init.shape[0]
 
