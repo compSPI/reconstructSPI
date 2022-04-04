@@ -9,7 +9,7 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def n_pix():
     """Get test pixel count for consistency."""
-    return 2
+    return 4
 
 
 @pytest.fixture
