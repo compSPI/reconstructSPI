@@ -3,6 +3,8 @@
 import numpy as np
 from geomstats.geometry import special_orthogonal
 from simSPI.transfer import eval_ctf
+from compSPI.transforms import primal_to_fourier_3D
+from compSPI.transforms import fourier_to_primal_3D
 
 
 class IterativeRefinement:
@@ -78,8 +80,8 @@ class IterativeRefinement:
         ctfs = self.build_ctf_array()
         ctfs_1, ctfs_2 = IterativeRefinement.split_array(ctfs)
 
-        particles_f_1 = IterativeRefinement.fft_3d(particles_1)
-        particles_f_2 = IterativeRefinement.fft_3d(particles_2)
+        particles_f_1 = primal_to_fourier_3D(particles_1)
+        particles_f_2 = primal_to_fourier_3D(particles_2)
 
         n_pix = self.map_3d_init.shape[0]
 
@@ -90,13 +92,13 @@ class IterativeRefinement:
             self.map_3d_init.copy(),
         )
 
-        half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
-        half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
+        half_map_3d_f_1 = primal_to_fourier_3D(half_map_3d_r_1)
+        half_map_3d_f_2 = primal_to_fourier_3D(half_map_3d_r_2)
 
         for _ in range(self.max_itr):
 
-            half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
-            half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
+            half_map_3d_f_1 = primal_to_fourier_3D(half_map_3d_r_1)
+            half_map_3d_f_2 = primal_to_fourier_3D(half_map_3d_r_2)
 
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
 
@@ -196,9 +198,9 @@ class IterativeRefinement:
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
         fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, n_pix)
         map_3d_f_final = (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
-        map_3d_r_final = IterativeRefinement.ifft_3d(map_3d_f_final)
-        half_map_3d_r_1 = IterativeRefinement.ifft_3d(half_map_3d_f_1)
-        half_map_3d_r_2 = IterativeRefinement.ifft_3d(half_map_3d_f_2)
+        map_3d_r_final = fourier_to_primal_3D(map_3d_f_final)
+        half_map_3d_r_1 = fourier_to_primal_3D(half_map_3d_f_1)
+        half_map_3d_r_2 = fourier_to_primal_3D(half_map_3d_f_2)
 
         return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
 
@@ -599,39 +601,3 @@ class IterativeRefinement:
             arr_3d = np.where(mask, arr_1d[i], arr_3d)
 
         return arr_3d
-
-    @staticmethod
-    def fft_3d(array):
-        """3D Fast Fourier Transform.
-
-        Parameters
-        ----------
-        array : arr
-            Input array.
-            Shape (n_pix, n_pix, n_pix)
-
-        Returns
-        -------
-        fft_array : arr
-            Fourier transform of array.
-            Shape (n_pix, n_pix, n_pix)
-        """
-        return np.zeros(array.shape, dtype=np.cdouble)
-
-    @staticmethod
-    def ifft_3d(fft_array):
-        """3D Inverse Fast Fourier Transform.
-
-        Parameters
-        ----------
-        fft_array : arr
-            Fourier transform of array.
-            Shape (n_pix, n_pix, n_pix)
-
-        Returns
-        -------
-        array : arr
-            Original array.
-            Shape (n_pix, n_pix, n_pix)
-        """
-        return np.zeros(fft_array.shape)

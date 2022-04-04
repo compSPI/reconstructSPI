@@ -60,20 +60,6 @@ def test_split_array(test_ir, n_particles):
     assert len(arr2) == 1
 
 
-def test_fft_3d(test_ir, n_pix):
-    """Test 3D fourier transform."""
-    arr = np.zeros((n_pix, n_pix, n_pix))
-    fft_arr = test_ir.fft_3d(arr)
-    assert fft_arr.shape == arr.shape
-
-
-def test_ifft_3d(test_ir, n_pix):
-    """Test 3D inverse fourier transform."""
-    fft_arr = np.zeros((n_pix, n_pix, n_pix))
-    arr = test_ir.fft_3d(fft_arr)
-    assert fft_arr.shape == arr.shape
-
-
 def test_build_ctf_array(test_ir, n_particles, n_pix):
     """Test bulding arbitrary CTF array."""
     ctfs = test_ir.build_ctf_array()
@@ -92,13 +78,10 @@ def test_generate_xy_plane(test_ir, n_pix):
     xy_plane = test_ir.generate_xy_plane(n_pix)
     assert xy_plane.shape == (3, n_pix**2)
 
-    n_pix_2 = 2
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
 
-    xy_plane = test_ir.generate_xy_plane(n_pix_2)
+    xy_plane = test_ir.generate_xy_plane(2)
     assert np.allclose(xy_plane, plane_2)
-    assert np.isclose(xy_plane.max(), n_pix_2 // 2 - 1)
-    assert np.isclose(xy_plane.min(), -n_pix_2 // 2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -205,79 +188,12 @@ def test_compute_fsc(test_ir, n_pix):
     assert fsc_1.shape == (n_pix // 2,)
 
 
-def test_binary_mask_3d(test_ir):
-    """Test binary_mask_3d.
-
-    Tests the limit of infinite n_pix. Use high n_pix so good approx.
-    1. Sums shell through an axis, then converts to circle,
-    then checks if circle/square ratio agrees with largest
-    circle inscribed in square. Should be pi/4.
-
-    2. Make shells at sizes r and r/2 and check ratios of perimeter
-    of circle (mid slice) and surface area of sphere.
-
-    3. Make filled sphere of sizes r and r/2 and check ratio of volume.
-    """
-    n_pix = 512
-
-    center = (n_pix // 2, n_pix // 2, n_pix // 2)
-    radius = n_pix // 2
-    shape = (n_pix, n_pix, n_pix)
-    for fill in [True, False]:
-        mask = test_ir.binary_mask_3d(
-            center, radius, shape, fill=fill, shell_thickness=1
-        )
-
-        for axis in [0, 1, 2]:
-            circle = mask.sum(axis=axis) > 0
-            circle_to_square_ratio = circle.mean()
-            assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
-
-    mask = test_ir.binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1)
-    circle = mask[n_pix // 2]
-    circle_to_square_ratio = circle.mean()
-    assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
-
-    r_half = radius / 2
-    for shell_thickness in [1, 2]:
-        mask_r = test_ir.binary_mask_3d(
-            center, radius, shape, fill=False, shell_thickness=1
-        )
-        mask_r_half = test_ir.binary_mask_3d(
-            center, r_half, shape, fill=False, shell_thickness=1
-        )
-        perimeter_ratio = mask_r[n_pix // 2].sum() / mask_r_half[n_pix // 2].sum()
-        assert np.isclose(2, perimeter_ratio, atol=0.1)
-        if shell_thickness == 1:
-            assert np.isclose(
-                mask_r[n_pix // 2].sum() / (2 * np.pi * radius), 1, atol=0.1
-            )
-            assert np.isclose(
-                mask_r_half[n_pix // 2].sum() / (2 * np.pi * r_half), 1, atol=0.1
-            )
-
-        surface_area_ratio = mask_r.sum() / mask_r_half.sum()
-        surface_area_ratio_analytic = (radius / r_half) ** 2
-        assert np.isclose(surface_area_ratio, surface_area_ratio_analytic, atol=0.1)
-
-    mask_r = test_ir.binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1)
-    mask_r_half = test_ir.binary_mask_3d(
-        center, r_half, shape, fill=True, shell_thickness=1
-    )
-    volume_ratio = mask_r.sum() / mask_r_half.sum()
-    volume_ratio_analytic = (radius / r_half) ** 3
-    assert np.isclose(volume_ratio, volume_ratio_analytic, atol=0.005)
-
-
 def test_expand_1d_to_3d(test_ir, n_pix):
     """Test expansion of 1D array into spherical shell."""
-    arr_1d = np.ones(n_pix // 2)
-    arr_3d = test_ir.expand_1d_to_3d(arr_1d, n_pix)
+    arr1d = np.ones(n_pix // 2)
+    spherical = test_ir.expand_1d_to_3d(arr1d)
 
-    assert arr_3d.shape == (n_pix, n_pix, n_pix)
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2 :, n_pix // 2, n_pix // 2])
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2 :, n_pix // 2])
-    assert np.allclose(arr_1d[:], arr_3d[n_pix // 2, n_pix // 2, n_pix // 2 :])
+    assert spherical.shape == (n_pix, n_pix, n_pix)
 
 
 def test_iterative_refinement(test_ir, n_pix):
