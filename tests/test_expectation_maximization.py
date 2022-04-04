@@ -233,7 +233,7 @@ def test_insert_slice(test_ir, n_pix):
     """
     xy_plane = test_ir.generate_xy_plane(n_pix)
     map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
-    map_plane_ones[2] = np.ones((n_pix, n_pix))
+    map_plane_ones[n_pix // 2] = np.ones((n_pix, n_pix))
 
     rot_90deg_about_y = np.array(
         [
