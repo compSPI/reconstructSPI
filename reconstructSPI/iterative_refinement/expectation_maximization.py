@@ -385,7 +385,7 @@ class IterativeRefinement:
         """
         n_rotations = rots.shape[0]
         slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
-        xyz_rotated = np.empty((n_rotations, n_pix ** 2, 3))
+        xyz_rotated = np.empty((n_rotations, 3, n_pix ** 2))
         for i in range(n_rotations):
             xyz_rotated[i] = rots[i] @ (xy_plane + 0.5) - 0.5
 
