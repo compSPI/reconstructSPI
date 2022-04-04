@@ -97,17 +97,6 @@ def test_generate_xy_plane(test_ir, n_pix):
     xy_plane = test_ir.generate_xy_plane(2)
     assert np.allclose(xy_plane, plane_2)
 
-    plane_3 = np.array(
-        [
-            [-1, 0, 1, -1, 0, 1, -1, 0, 1],
-            [-1, -1, -1, 0, 0, 0, 1, 1, 1],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        ]
-    )
-
-    xy_plane = test_ir.generate_xy_plane(3)
-    assert np.allclose(xy_plane, plane_3)
-
 
 def test_generate_slices(test_ir, n_particles, n_pix):
     """Test generation of slices."""
