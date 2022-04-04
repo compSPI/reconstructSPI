@@ -195,7 +195,7 @@ class IterativeRefinement:
             )
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, n_pix)
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
         map_3d_f_final = (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
         map_3d_r_final = IterativeRefinement.ifft_3d(map_3d_f_final)
         half_map_3d_r_1 = IterativeRefinement.ifft_3d(half_map_3d_f_1)
