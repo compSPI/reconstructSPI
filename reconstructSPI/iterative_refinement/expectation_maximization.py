@@ -321,11 +321,15 @@ class IterativeRefinement:
             Array describing xy plane in space.
             Shape (3, n_pix**2)
         """
-        # See geoff's meshgrid and generate coordinates functions used
-        # https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L96
+        axis_pts = np.arange(-n_pix // 2, n_pix // 2)
+        grid = np.meshgrid(axis_pts, axis_pts)
+    
+        xy_plane = np.zeros((n_pix**2, 3))
+    
+        for d in range(2):
+            xy_plane[:, d] = grid[d].flatten()
 
-        xy_plane = coords.coords_n_by_d(np.arange(-n_pix // 2, n_pix // 2), d=3)
-        return xy_plane
+        return xy_plane.T
 
     @staticmethod
     def generate_slices(map_3d_f, xy_plane, n_pix, rots):
