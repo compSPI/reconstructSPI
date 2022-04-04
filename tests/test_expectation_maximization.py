@@ -123,6 +123,9 @@ def test_generate_slices(test_ir, n_particles, n_pix):
 
     assert slices.shape == (n_particles, n_pix, n_pix)
     assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
+    
+    map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
+    map_plane_ones[2] = np.ones((n_pix, n_pix))
 
     rot_90deg_about_y = np.array(
         [
@@ -134,9 +137,6 @@ def test_generate_slices(test_ir, n_particles, n_pix):
         map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
     )
     assert np.allclose(slices[0], np.ones_like(slices[0]))
-    
-    map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
-    map_plane_ones[2] = np.ones((n_pix, n_pix))
 
     rot_180deg_about_z = np.array(
         [
