@@ -590,8 +590,15 @@ class IterativeRefinement:
         -------
         arr_3d : arr
             Shape (n_pix, n_pix, n_pix)
+
+        Note
+        ----
+        Edges arr_3d[0,:,:], arr_3d[:,0,:], arr_3d[:,:,0] are zero.
+        The dc component is not repeated on the left half, because the outer
+        half shell at radius -n_pix/2 does not have a corresponding positive half shell,
+        which only goes up to +n_pix/2 -1.
         """
-        n_pix = arr_1d.shape[0] * 2
+        n_pix = 2 * len(arr_1d)
         arr_3d = np.zeros((n_pix, n_pix, n_pix))
         center = (n_pix // 2, n_pix // 2, n_pix // 2)
         for i in reversed(range(n_pix // 2)):
