@@ -340,10 +340,12 @@ class IterativeRefinement:
     def generate_slices(map_3d_f, xy_plane, n_pix, rots):
         """Generate slice coordinates by rotating xy plane.
 
-                Interpolate values from map_3d_f onto 3D coordinates.
+        Interpolate values from map_3d_f onto 3D coordinates.
 
-        See how scipy map_values used to interpolate in
-        https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L111
+                
+        Shift the space into a centered position before rotating and 
+        revert shift after rotation. This preserves the bounds of the 
+        space. 
 
         Parameters
         ----------
@@ -370,10 +372,9 @@ class IterativeRefinement:
         """
         n_rotations = rots.shape[0]
         slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
-        xy_planes = np.repeat(np.expand_dims(xy_plane, axis=0), n_rotations, axis=0)
+        xy_planes = np.empty((n_rotations, n_pix**2, 3))
         for i in range(n_rotations):
-            for xy in range(xy_plane.shape[1]):
-                xy_planes[i, :, xy] = rots[i] @ (xy_planes[i, :, xy])
+            xy_planes[i] = rots[i] @ (xy_plane + 0.5) - 0.5
 
             slices[i] = map_coordinates(map_3d_f, xy_planes[i] + n_pix // 2).reshape(
                 (n_pix, n_pix)
