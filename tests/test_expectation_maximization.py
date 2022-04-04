@@ -76,7 +76,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_xy_plane(test_ir, n_pix):
     """Test generation of xy plane."""
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    assert xy_plane.shape == (3, n_pix ** 2)
+    assert xy_plane.shape == (3, n_pix**2)
 
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
 
@@ -93,7 +93,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     slices, xyz_rotated = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
 
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated.shape == (n_particles, 3, n_pix ** 2)
+    assert xyz_rotated.shape == (n_particles, 3, n_pix**2)
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
