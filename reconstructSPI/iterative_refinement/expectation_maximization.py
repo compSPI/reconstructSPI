@@ -486,10 +486,10 @@ class IterativeRefinement:
             otherwise 0.
             Shape (n_pix, n_pix, n_pix)
         """
-        inserted_slice_tensor = torch.sparse_coo_tensor(xyz, slice_real.reshape((n_pix**2,), (3, n_pix**2, 1)))
-        count_tensor = torch.sparse_coo_tensor(xyz, np.ones((n_pix**2,)), (3, n_pix**2, 1))
-        inserted_slice_3d = inserted_slice_tensor.coalesce().numpy()
-        count_3d = count_tensor.coalesce().numpy()
+        inserted_slice_tensor = torch.sparse_coo_tensor(xyz + n_pix // 2, slice_real.reshape((n_pix**2,)), (n_pix, n_pix, n_pix))
+        count_tensor = torch.sparse_coo_tensor(xyz + n_pix // 2, np.ones((n_pix**2,)), (n_pix, n_pix, n_pix))
+        inserted_slice_3d = inserted_slice_tensor.to_dense().numpy()
+        count_3d = count_tensor.to_dense().numpy()
         return inserted_slice_3d, count_3d
 
     @staticmethod
