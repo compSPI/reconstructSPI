@@ -100,7 +100,7 @@ class IterativeRefinement:
 
         half_map_3d_r_1, half_map_3d_r_2 = (
             self.map_3d_init.copy(),
-            self.map_3d_init.copy()
+            self.map_3d_init.copy(),
         )
 
         map_shape = (1, n_pix, n_pix, n_pix)
@@ -254,7 +254,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts ** 2)
+        return map_3d * counts / (norm_const + counts**2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -304,7 +304,7 @@ class IterativeRefinement:
         arr_1, arr_2 = arr[:idx_half], arr[idx_half:]
 
         if len(arr_1) != len(arr_2):
-            arr_2 = arr[idx_half: 2 * idx_half]
+            arr_2 = arr[idx_half : 2 * idx_half]
 
         return arr_1, arr_2
 
@@ -371,7 +371,7 @@ class IterativeRefinement:
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
         grid = np.meshgrid(axis_pts, axis_pts)
 
-        xy_plane = np.zeros((3, n_pix ** 2))
+        xy_plane = np.zeros((3, n_pix**2))
 
         for d in range(2):
             xy_plane[d, :] = grid[d].flatten()
@@ -417,7 +417,7 @@ class IterativeRefinement:
             np.expand_dims(np.ones_like(xy_plane), axis=0), n_rotations, axis=0
         )
 
-        size = n_rotations * n_pix ** 2
+        size = n_rotations * n_pix**2
         slices = np.random.normal(size=size)
         slices = slices.reshape((n_rotations, n_pix, n_pix))
         return slices, xyz_rotated
@@ -478,7 +478,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma ** 2) ** -1)
+        scale = -((2 * sigma**2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -595,9 +595,9 @@ class IterativeRefinement:
         """
         a, b, c = center
         nx0, nx1, nx2 = shape
-        x0, x1, x2 = np.ogrid[-a: nx0 - a, -b: nx1 - b, -c: nx2 - c]
-        r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
-        mask = r2 <= radius ** 2
+        x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
+        r2 = x0**2 + x1**2 + x2**2
+        mask = r2 <= radius**2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
