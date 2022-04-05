@@ -8,6 +8,7 @@ from compSPI.transforms import (
     primal_to_fourier_3D,
 )
 from geomstats.geometry import special_orthogonal
+from scipy.ndimage import map_coordinates
 from simSPI.transfer import eval_ctf
 
 
@@ -218,7 +219,7 @@ class IterativeRefinement:
             )
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, n_pix)
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
 
         map_3d_f_final = ((half_map_3d_f_1 + half_map_3d_f_2) / 2) * fsc_3d
         map_3d_f_final = torch.from_numpy(map_3d_f_final.reshape(map_shape))
@@ -229,6 +230,7 @@ class IterativeRefinement:
 
         half_map_3d_f_2 = torch.from_numpy(half_map_3d_f_2.reshape(map_shape))
         half_map_3d_r_2 = fourier_to_primal_3D(half_map_3d_f_2).numpy()[0]
+
 
         return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
 
@@ -277,7 +279,7 @@ class IterativeRefinement:
         """
         fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
 
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, fsc_1d.shape[0])
+        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
 
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
@@ -382,23 +384,34 @@ class IterativeRefinement:
     def generate_slices(map_3d_f, xy_plane, n_pix, rots):
         """Generate slice coordinates by rotating xy plane.
 
-                Interpolate values from map_3d_f onto 3D coordinates.
+        Interpolate values from map_3d_f onto 3D coordinates.
 
-        See how scipy map_values used to interpolate in
-        https://github.com/geoffwoollard/compSPI/blob/stash_simulate/src/simulate.py#L111
+
+        Shift the space into a centered position before rotating and
+        revert shift after rotation. This preserves the bounds of the
+        space.
 
         Parameters
         ----------
-        map_3d_f : arr
+        map_3d_f : arr, float (not complex)
             Shape (n_pix, n_pix, n_pix)
+            Convention x,y,z, with
+                -n_pix/2,-n_pix/2,-n_pix/2 pixel at map_3d_f[0,0,0],
+                0,0,0 pixel at map_3d_f[n/2,n/2,n/2]
+                n_pix/2-1,n_pix/2-1,n_pix/2-1 pixel at the final corner,
+                    i.e. map_3d_f[n_pix-1,n_pix-1,n_pix-1]
         xy_plane : arr
             Array describing xy plane in space.
             Shape (3, n_pix**2)
+            Convention x,y,z, i.e.
+                xy_plane[0] is x coordinate
+                xy_plane[1] is y coordinate
+                xy_plane[2] is z coordinate, which is all zero
         n_pix : int
             Number of pixels along one edge of the plane.
         rots : arr
             Array describing rotations.
-            Shape (n_rotations, 3, 3)
+            Shape (n_rotations, n_pix**2, 3)
 
         Returns
         -------
@@ -407,19 +420,48 @@ class IterativeRefinement:
             of projection of rotated map_3d_f.
             Shape (n_rotations, n_pix, n_pix)
         xyz_rotated : arr
-            Rotated xy plane.
+            Rotated xy planes.
             Shape (n_rotations, 3, n_pix**2)
+
+
+        Notes
+        -----
+        The coordinates are not centered, and the origin/dc component
+        is in map_coordinates. This results in an artefact where the
+        first column of slices[i] is not (always) interpolated,
+        because some rotations, like a 180 deg in xy-plane rotation,
+        do not reach it. It is related to the coordinates going
+        from [n_pix/2,n_pix/2-1] and not [n_pix/2,n_pix/2].
+
+        The Fourier transform and rotations commute. The overall scale of
+        the projection does not change under rotation, and thus the dc component,
+        which here corresponds to the origin pixel, should not change locations,
+        under all rotations, and is same is in arr_2d[n/2,n/2].
+        Otherwise by a rotation, the overall scale of the projection changes,
+        which is totally undesirable.
+
+        This makes the "edge effects" of (possibly) having zeros in the values of
+        map_coordinates corresponding to -n/2 xyz coordinates after rotation,
+        i.e. map_coordinates[0,:,:], map_coordinates[:,0,:] and map_coordinates[:,:,0],
+        which correspond to slices[0,:], slices[:,0].
+        This behaviour should be anticipated.
+        In practice real slices will come from a map_3d_f that goes to zero at the edge,
+        and the slices will also go to zero at the edge.
+        As far as the presence of noise in the edge pixels, masking that crops
+        close enough to the centre will keeping a safe distance from the edge.
         """
         n_rotations = rots.shape[0]
-        # map_values interpolation, calculate from map, rots
-        map_3d_f = np.ones_like(map_3d_f)
-        xyz_rotated = np.repeat(
-            np.expand_dims(np.ones_like(xy_plane), axis=0), n_rotations, axis=0
-        )
+        slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
+        overwrite_empty_with_zero = 0
+        slices[:, :, 0] = overwrite_empty_with_zero
+        xyz_rotated = np.empty((n_rotations, 3, n_pix**2))
+        for i in range(n_rotations):
+            xyz_rotated[i] = rots[i] @ xy_plane
 
-        size = n_rotations * n_pix**2
-        slices = np.random.normal(size=size)
-        slices = slices.reshape((n_rotations, n_pix, n_pix))
+            slices[i] = map_coordinates(map_3d_f, xyz_rotated[i] + n_pix // 2).reshape(
+                (n_pix, n_pix)
+            )
+
         return slices, xyz_rotated
 
     @staticmethod
@@ -605,21 +647,27 @@ class IterativeRefinement:
         return mask
 
     @staticmethod
-    def expand_1d_to_3d(arr_1d, n_pix):
+    def expand_1d_to_3d(arr_1d):
         """Expand 1D array data into spherical shell.
 
         Parameters
         ----------
         arr_1d : arr
             Shape (n_pix // 2)
-        n_pix : int
-            Number of pixels in each map dimension
 
         Returns
         -------
         arr_3d : arr
             Shape (n_pix, n_pix, n_pix)
+
+        Note
+        ----
+        Edges arr_3d[0,:,:], arr_3d[:,0,:], arr_3d[:,:,0] are zero.
+        The dc component is not repeated on the left half, because the outer
+        half shell at radius -n_pix/2 does not have a corresponding positive half shell,
+        which only goes up to +n_pix/2 -1.
         """
+        n_pix = 2 * len(arr_1d)
         arr_3d = np.zeros((n_pix, n_pix, n_pix))
         center = (n_pix // 2, n_pix // 2, n_pix // 2)
         for i in reversed(range(n_pix // 2)):
