@@ -1,7 +1,6 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
 import numpy as np
-import torch
 from geomstats.geometry import special_orthogonal
 from scipy.ndimage import map_coordinates
 from scipy.interpolate import griddata
@@ -565,7 +564,7 @@ class IterativeRefinement:
         slice_real : float64 arr
             Shape (n_pix, n_pix) the slice of interest.
         xy_rotated : arr
-            Shape (3, 3 * n_pix**2) nonzero-depth "plane" of rotated slice coords.
+            Shape (3, 3*n_pix**2) nonzero-depth "plane" of rotated slice coords.
         n_pix : int
             Number of pixels.
 
