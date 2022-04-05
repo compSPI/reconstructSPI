@@ -9,7 +9,9 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def n_pix():
     """Get test pixel count for consistency."""
-    return np.random.randint(1, 11) * 2
+    n_pix_half_max = 8
+    n_pix_half_min = 2
+    return np.random.randint(n_pix_half_min, n_pix_half_max + 1) * 2
 
 
 @pytest.fixture
@@ -104,53 +106,79 @@ def test_generate_xy_plane(test_ir, n_pix):
 def test_generate_slices(test_ir, n_particles, n_pix):
     """Test generation of slices.
 
-    90-degree rotation test.
+    The artefact values the slices that are zero depend on the rotation
+    and can be the values at -n/2 in any coordinate. The tests should pass
+    if these are excluded in the assert,
+    i.e. np.allclose(expected_slice[1:,1:], returned_slice[1:,1:])
+
+    1. Shape test.
+
+    2. DC (origin) component test. DC component should not change after any rotation.
+
+    3. 90-degree-rotation plane-to-line test.
     Map has ones in central xz-plane.
     Rotating by -90 degrees about y
-    should produce a slice of ones.
+    should produce a slice with a line along the y direction at the central x coord.
 
-    180-degree rotation test.
-    Map has ones in central xz-plane.
+    4. 180-degree-rotation plane-to-plane test.
+    Map has ones in central xy-plane.
     Rotating by 180 degrees about z
-    should produce a similar matrix,
-    namely a slice of ones in the -1-line.
+    should produce a similar slice of ones.
     """
     map_3d = np.ones((n_pix, n_pix, n_pix))
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_xy_plane(n_pix)
-
     slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
-
     assert slices.shape == (n_particles, n_pix, n_pix)
     assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
 
-    map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
-    map_plane_ones[n_pix // 2] = np.ones((n_pix, n_pix))
+    map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
+    rand_val = np.random.uniform(low=1, high=2)
+    map_3d_dc[n_pix // 2, n_pix // 2, n_pix // 2] = rand_val
+    expected_dc = rand_val * np.ones(len(slices))
+    slices, xyz_rotated_planes = test_ir.generate_slices(
+        map_3d_dc, xy_plane, n_pix, rots
+    )
+    projected_dc = slices[:, n_pix // 2, n_pix // 2]
+    assert np.allclose(projected_dc, expected_dc)
 
+    map_plane_ones_xzplane = np.zeros((n_pix, n_pix, n_pix))
+    map_plane_ones_xzplane[:, n_pix // 2, :] = 1
+    rad = np.pi / 2
+    c = np.cos(rad)
+    s = np.sin(rad)
     rot_90deg_about_y = np.array(
         [
-            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+            [[c, 0, s], [0, 1, 0], [-s, 0, c]],
         ]
     )
+    expected_slice_line_y = np.zeros_like(slices[0])
+    expected_slice_line_y[n_pix // 2] = 1
 
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
+        map_plane_ones_xzplane, xy_plane, n_pix, rot_90deg_about_y
     )
-    assert np.allclose(slices[0], np.ones_like(slices[0]))
+    omit_idx_artefact = 1
+    assert np.allclose(
+        slices[0, omit_idx_artefact:, omit_idx_artefact:],
+        expected_slice_line_y[omit_idx_artefact:, omit_idx_artefact:],
+    )
 
     rot_180deg_about_z = np.array(
         [
             [[-1, 0, 0], [0, -1, 0], [0, 0, 1]],
         ]
     )
-
-    expected_slice = np.zeros((n_pix, n_pix))
-    expected_slice[:, n_pix // 2 - 1] = 1
-
+    map_plane_ones_xyplane = np.zeros((n_pix, n_pix, n_pix))
+    map_plane_ones_xyplane[:, :, n_pix // 2] = 1
+    expected_slice = np.ones((n_pix, n_pix))
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones, xy_plane, n_pix, rot_180deg_about_z
+        map_plane_ones_xyplane, xy_plane, n_pix, rot_180deg_about_z
     )
-    assert np.allclose(slices[0], expected_slice)
+    assert np.allclose(
+        slices[0, omit_idx_artefact:, omit_idx_artefact:],
+        expected_slice[omit_idx_artefact:, omit_idx_artefact:],
+    )
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
