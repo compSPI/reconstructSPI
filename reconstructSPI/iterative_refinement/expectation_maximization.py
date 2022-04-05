@@ -112,32 +112,41 @@ class IterativeRefinement:
             self.map_3d_init.copy(),
         )
 
-        map_shape = (1, n_pix, n_pix, n_pix)
+        batch_map_shape = (1, n_pix, n_pix, n_pix)
+        map_shape = (n_pix, n_pix, n_pix)
 
-        half_map_3d_f_1 = primal_to_fourier_3D(
-            torch.from_numpy(half_map_3d_r_1.reshape(map_shape))
-        ).numpy()
+        half_map_3d_f_1 = (
+            primal_to_fourier_3D(
+                torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
+            )
+            .numpy()
+            .reshape(map_shape)
+        )
 
-        half_map_3d_f_2 = primal_to_fourier_3D(
-            torch.from_numpy(half_map_3d_r_2.reshape(map_shape))
-        ).numpy()
+        half_map_3d_f_2 = (
+            primal_to_fourier_3D(
+                torch.from_numpy(half_map_3d_r_2.reshape(batch_map_shape))
+            )
+            .numpy()
+            .reshape(map_shape)
+        )
 
         for _ in range(self.max_itr):
 
             half_map_3d_f_1 = (
                 primal_to_fourier_3D(
-                    torch.from_numpy(half_map_3d_r_1.reshape(map_shape))
+                    torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
                 )
                 .numpy()
-                .reshape((n_pix, n_pix, n_pix))
+                .reshape(map_shape)
             )
 
             half_map_3d_f_2 = (
                 primal_to_fourier_3D(
-                    torch.from_numpy(half_map_3d_r_2.reshape(map_shape))
+                    torch.from_numpy(half_map_3d_r_2.reshape(batch_map_shape))
                 )
                 .numpy()
-                .reshape((n_pix, n_pix, n_pix))
+                .reshape(map_shape)
             )
 
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
@@ -239,13 +248,19 @@ class IterativeRefinement:
 
         map_3d_f_final = ((half_map_3d_f_1 + half_map_3d_f_2) / 2) * fsc_3d
         map_3d_f_final = torch.from_numpy(map_3d_f_final.reshape(map_shape))
-        map_3d_r_final = fourier_to_primal_3D(map_3d_f_final).numpy()[0]
+        map_3d_r_final = (
+            fourier_to_primal_3D(map_3d_f_final).numpy().reshape((n_pix, n_pix, n_pix))
+        )
 
         half_map_3d_f_1 = torch.from_numpy(half_map_3d_f_1.reshape(map_shape))
-        half_map_3d_r_1 = fourier_to_primal_3D(half_map_3d_f_1).numpy()[0]
+        half_map_3d_r_1 = (
+            fourier_to_primal_3D(half_map_3d_f_1).numpy().reshape((n_pix, n_pix, n_pix))
+        )
 
         half_map_3d_f_2 = torch.from_numpy(half_map_3d_f_2.reshape(map_shape))
-        half_map_3d_r_2 = fourier_to_primal_3D(half_map_3d_f_2).numpy()[0]
+        half_map_3d_r_2 = (
+            fourier_to_primal_3D(half_map_3d_f_2).numpy().reshape((n_pix, n_pix, n_pix))
+        )
 
         return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
 
