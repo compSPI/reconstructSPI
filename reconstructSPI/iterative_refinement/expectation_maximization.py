@@ -650,7 +650,7 @@ class IterativeRefinement:
         xy_rotated : arr
             Shape (3, 3*n_pix**2) nonzero-depth "plane" of rotated slice coords.
         xyz : arr
-            Shape (3, n_pix**3) voxels of 3D map. 
+            Shape (3, n_pix**3) voxels of 3D map.
 
         Returns
         -------
