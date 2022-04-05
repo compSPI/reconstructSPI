@@ -62,20 +62,6 @@ def test_split_array(test_ir, n_particles):
     assert len(arr2) == 1
 
 
-def test_fft_3d(test_ir, n_pix):
-    """Test 3D fourier transform."""
-    arr = np.zeros((n_pix, n_pix, n_pix))
-    fft_arr = test_ir.fft_3d(arr)
-    assert fft_arr.shape == arr.shape
-
-
-def test_ifft_3d(test_ir, n_pix):
-    """Test 3D inverse fourier transform."""
-    fft_arr = np.zeros((n_pix, n_pix, n_pix))
-    arr = test_ir.fft_3d(fft_arr)
-    assert fft_arr.shape == arr.shape
-
-
 def test_build_ctf_array(test_ir, n_particles, n_pix):
     """Test bulding arbitrary CTF array."""
     ctfs = test_ir.build_ctf_array()
@@ -94,13 +80,10 @@ def test_generate_xy_plane(test_ir, n_pix):
     xy_plane = test_ir.generate_xy_plane(n_pix)
     assert xy_plane.shape == (3, n_pix**2)
 
-    n_pix_2 = 2
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
 
-    xy_plane = test_ir.generate_xy_plane(n_pix_2)
+    xy_plane = test_ir.generate_xy_plane(2)
     assert np.allclose(xy_plane, plane_2)
-    assert np.isclose(xy_plane.max(), n_pix_2 // 2 - 1)
-    assert np.isclose(xy_plane.min(), -n_pix_2 // 2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -200,7 +183,7 @@ def test_compute_bayesian_weights(test_ir):
     in offset_safe + scale*particle_norm, which should be zero.
     Also important to keep the tolerance of the em_loss test low.
     """
-    sigma = 1 + np.random.normal(0, 1) ** 2
+    sigma = 2 + np.random.normal(0, 1) ** 2
 
     n_pix = np.random.randint(low=10, high=100)
     particle = np.ones((n_pix, n_pix)).astype(np.complex64)
@@ -275,15 +258,12 @@ def test_compute_fsc(test_ir, n_pix):
 
 def test_binary_mask_3d(test_ir):
     """Test binary_mask_3d.
-
     Tests the limit of infinite n_pix. Use high n_pix so good approx.
     1. Sums shell through an axis, then converts to circle,
     then checks if circle/square ratio agrees with largest
     circle inscribed in square. Should be pi/4.
-
     2. Make shells at sizes r and r/2 and check ratios of perimeter
     of circle (mid slice) and surface area of sphere.
-
     3. Make filled sphere of sizes r and r/2 and check ratio of volume.
     """
     n_pix = 512
