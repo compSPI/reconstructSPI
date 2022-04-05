@@ -81,7 +81,7 @@ class IterativeRefinement:
             Shape (n_pix // 2,)
         """
         particles_1, particles_2 = IterativeRefinement.split_array(self.particles)
-        n_pix = self.map_3d_init.shape[0]
+        n_pix = len(self.map_3d_init)
 
         ctfs = self.build_ctf_array()
         ctfs_1, ctfs_2 = IterativeRefinement.split_array(ctfs)
@@ -104,8 +104,8 @@ class IterativeRefinement:
             .reshape((n_batch_2, n_pix, n_pix))
         )
 
-        n_pix = self.map_3d_init.shape[0]
-        n_rotations = self.particles.shape[0]
+        n_pix = len(self.map_3d_init)
+        n_rotations = len(self.particles)
 
         half_map_3d_r_1, half_map_3d_r_2 = (
             self.map_3d_init.copy(),
@@ -167,7 +167,7 @@ class IterativeRefinement:
             counts_3d_updated_1 = np.zeros_like(half_map_3d_r_1)
             counts_3d_updated_2 = np.zeros_like(half_map_3d_r_2)
 
-            for particle_idx in range(particles_f_1.shape[0]):
+            for particle_idx in range(len(particles_f_1)):
                 ctf_1 = ctfs_1[particle_idx]
                 ctf_2 = ctfs_2[particle_idx]
 
@@ -210,7 +210,7 @@ class IterativeRefinement:
                     )
                 )
 
-                for one_slice_idx in range(bayes_factors_1.shape[0]):
+                for one_slice_idx in range(len(bayes_factors_1)):
                     xyz = xyz_rotated[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
                         particle_f_deconv_1.real, xyz, n_pix
@@ -221,7 +221,7 @@ class IterativeRefinement:
                     map_3d_f_updated_1 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
                     counts_3d_updated_1 += count_3d_r + count_3d_i
 
-                for one_slice_idx in range(bayes_factors_2.shape[0]):
+                for one_slice_idx in range(len(bayes_factors_2)):
                     xyz = xyz_rotated[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
                         particle_f_deconv_2.real, xyz, n_pix
@@ -286,7 +286,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -403,7 +403,7 @@ class IterativeRefinement:
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
         grid = np.meshgrid(axis_pts, axis_pts)
 
-        xy_plane = np.zeros((3, n_pix**2))
+        xy_plane = np.zeros((3, n_pix ** 2))
 
         for d in range(2):
             xy_plane[d, :] = grid[d].flatten()
@@ -480,11 +480,11 @@ class IterativeRefinement:
         As far as the presence of noise in the edge pixels, masking that crops
         close enough to the centre will keeping a safe distance from the edge.
         """
-        n_rotations = rots.shape[0]
-        slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
+        n_rotations = len(rots)
+        slices = np.empty((n_rotations, len(map_3d_f), map_3d_f.shape[1]))
         overwrite_empty_with_zero = 0
         slices[:, :, 0] = overwrite_empty_with_zero
-        xyz_rotated = np.empty((n_rotations, 3, n_pix**2))
+        xyz_rotated = np.empty((n_rotations, 3, n_pix ** 2))
         for i in range(n_rotations):
             xyz_rotated[i] = rots[i] @ xy_plane
 
@@ -550,7 +550,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma**2) ** -1)
+        scale = -((2 * sigma ** 2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -603,7 +603,7 @@ class IterativeRefinement:
             otherwise 0.
             Shape (n_pix, n_pix, n_pix)
         """
-        shape = xyz.shape[0]
+        shape = len(xyz)
         count_3d = np.ones((n_pix, n_pix, n_pix))
         count_3d[0, 0, 0] *= shape
         inserted_slice_3d = np.ones((n_pix, n_pix, n_pix))
@@ -632,8 +632,8 @@ class IterativeRefinement:
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/fsc.ipynb
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/mFSC.ipynb
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/guinier_fsc_sharpen.ipynb
-        n_pix_1 = map_3d_f_1.shape[0]
-        n_pix_2 = map_3d_f_2.shape[0]
+        n_pix_1 = len(map_3d_f_1)
+        n_pix_2 = len(map_3d_f_2)
         fsc_1d_1 = np.ones(n_pix_1 // 2)
         fsc_1d_2 = np.ones(n_pix_2 // 2)
         noise_estimates = fsc_1d_1 * fsc_1d_2
@@ -668,8 +668,8 @@ class IterativeRefinement:
         a, b, c = center
         nx0, nx1, nx2 = shape
         x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-        r2 = x0**2 + x1**2 + x2**2
-        mask = r2 <= radius**2
+        r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
+        mask = r2 <= radius ** 2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
