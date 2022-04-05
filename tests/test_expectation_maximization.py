@@ -78,7 +78,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_xy_plane(test_ir, n_pix):
     """Test generation of xy plane."""
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    assert xy_plane.shape == (3, n_pix ** 2)
+    assert xy_plane.shape == (3, n_pix**2)
 
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
 
@@ -113,7 +113,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xy_plane = test_ir.generate_xy_plane(n_pix)
     slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix ** 2)
+    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
