@@ -78,7 +78,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_xy_plane(test_ir, n_pix):
     """Test generation of xy plane."""
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    assert xy_plane.shape == (3, n_pix**2)
+    assert xy_plane.shape == (3, n_pix ** 2)
 
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
 
@@ -113,7 +113,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xy_plane = test_ir.generate_xy_plane(n_pix)
     slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
+    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix ** 2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
@@ -258,12 +258,15 @@ def test_compute_fsc(test_ir, n_pix):
 
 def test_binary_mask_3d(test_ir):
     """Test binary_mask_3d.
+
     Tests the limit of infinite n_pix. Use high n_pix so good approx.
     1. Sums shell through an axis, then converts to circle,
     then checks if circle/square ratio agrees with largest
     circle inscribed in square. Should be pi/4.
+
     2. Make shells at sizes r and r/2 and check ratios of perimeter
     of circle (mid slice) and surface area of sphere.
+
     3. Make filled sphere of sizes r and r/2 and check ratio of volume.
     """
     n_pix = 512
