@@ -116,7 +116,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xy_plane = test_ir.generate_xy_plane(n_pix)
     slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, rots)
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
+    assert xyz_rotated_planes.shape == (n_particles, 3, 3 * n_pix**2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
@@ -254,10 +254,12 @@ def test_insert_slice(test_ir, n_pix):
     )
 
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones, xy_plane, n_pix, rot_90deg_about_y
+        map_plane_ones, xy_plane, rot_90deg_about_y
     )
 
-    inserted, count = test_ir.insert_slice(slices[0], xyz_rotated_planes[0], n_pix)
+    xyz_voxels = test_ir.generate_xyz_voxels(n_pix)
+
+    inserted, count = test_ir.insert_slice(slices[0], xyz_rotated_planes[0], xyz_voxels)
     assert np.allclose(inserted, map_plane_ones)
     assert np.allclose(count, map_plane_ones)
 

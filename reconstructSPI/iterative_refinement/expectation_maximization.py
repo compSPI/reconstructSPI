@@ -131,6 +131,8 @@ class IterativeRefinement:
             .reshape(map_shape)
         )
 
+        xyz_voxels = IterativeRefinement.generate_xyz_voxels(n_pix)
+
         for _ in range(self.max_itr):
 
             half_map_3d_f_1 = (
@@ -213,10 +215,10 @@ class IterativeRefinement:
                 for one_slice_idx in range(len(bayes_factors_1)):
                     xyz = xyz_rotated[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
-                        particle_f_deconv_1.real, xyz, n_pix
+                        particle_f_deconv_1.real, xyz, xyz_voxels
                     )
                     inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
-                        particle_f_deconv_1.imag, xyz, n_pix
+                        particle_f_deconv_1.imag, xyz, xyz_voxels
                     )
                     map_3d_f_updated_1 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
                     counts_3d_updated_1 += count_3d_r + count_3d_i
@@ -224,10 +226,10 @@ class IterativeRefinement:
                 for one_slice_idx in range(len(bayes_factors_2)):
                     xyz = xyz_rotated[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
-                        particle_f_deconv_2.real, xyz, n_pix
+                        particle_f_deconv_2.real, xyz, xyz_voxels
                     )
                     inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
-                        particle_f_deconv_2.imag, xyz, n_pix
+                        particle_f_deconv_2.imag, xyz, xyz_voxels
                     )
                     map_3d_f_updated_2 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
                     counts_3d_updated_2 += count_3d_r + count_3d_i
@@ -430,11 +432,11 @@ class IterativeRefinement:
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
         grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
 
-        xyz = np.zeros((3, n_pix**2))
+        xyz = np.zeros((3, n_pix**3))
 
-        for d in range(3):
-            xyz[d, :] = grid[d].flatten()
-        xyz[:, [0, 1]] = xyz[:, [1, 0]]
+        for di in range(3):
+            xyz[di] = grid[di].flatten()
+        xyz[[0, 1]] = xyz[[1, 0]]
 
         return xyz
 
@@ -633,7 +635,7 @@ class IterativeRefinement:
         return projection_wfilter_f
 
     @staticmethod
-    def insert_slice(slice_real, xy_rotated, n_pix):
+    def insert_slice(slice_real, xy_rotated, xyz):
         """Rotate slice and interpolate onto a 3D grid.
 
         Rotated xy-planes are expected to be of nonzero depth (i.e. a rotated
@@ -647,8 +649,8 @@ class IterativeRefinement:
             Shape (n_pix, n_pix) the slice of interest.
         xy_rotated : arr
             Shape (3, 3*n_pix**2) nonzero-depth "plane" of rotated slice coords.
-        n_pix : int
-            Number of pixels.
+        xyz : arr
+            Shape (3, n_pix**3) voxels of 3D map. 
 
         Returns
         -------
@@ -660,7 +662,7 @@ class IterativeRefinement:
             otherwise 0.
             Shape (n_pix, n_pix, n_pix)
         """
-        xyz = IterativeRefinement.generate_xyz_voxels(n_pix)
+        n_pix = slice_real.shape[0]
         slice_values = np.repeat(slice_real.reshape((n_pix**2,)), 3, axis=0)
         inserted_slice_3d = griddata(
             xy_rotated, slice_values, xyz, fill_value=0
