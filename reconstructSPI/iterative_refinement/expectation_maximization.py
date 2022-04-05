@@ -166,7 +166,7 @@ class IterativeRefinement:
             counts_3d_updated_1 = np.zeros_like(half_map_3d_r_1)
             counts_3d_updated_2 = np.zeros_like(half_map_3d_r_2)
 
-            for particle_idx in range(len(particles_f_1)):
+            for particle_idx in range(particles_f_1.shape[0]):
                 ctf_1 = ctfs_1[particle_idx]
                 ctf_2 = ctfs_2[particle_idx]
 
