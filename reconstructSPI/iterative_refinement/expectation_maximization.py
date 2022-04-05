@@ -379,7 +379,7 @@ class IterativeRefinement:
         return xyz
 
     @staticmethod
-    def generate_slices(map_3d_f, xy_plane, n_pix, rots, z_offset = 0.05):
+    def generate_slices(map_3d_f, xy_plane, n_pix, rots, z_offset=0.05):
         """Generate slice coordinates by rotating xy plane.
 
         Interpolate values from map_3d_f onto 3D coordinates.
@@ -452,15 +452,29 @@ class IterativeRefinement:
         slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
         overwrite_empty_with_zero = 0
         slices[:, :, 0] = overwrite_empty_with_zero
-        xyz_rotated = np.empty((n_rotations, 3, 3*n_pix**2))
-        offset = np.array([[0,],[0,],[z_offset,]])
-        xy_plane = np.concatenate((xy_plane + offset, xy_plane, xy_plane - offset), axis=1)
+        xyz_rotated = np.empty((n_rotations, 3, 3 * n_pix**2))
+        offset = np.array(
+            [
+                [
+                    0,
+                ],
+                [
+                    0,
+                ],
+                [
+                    z_offset,
+                ],
+            ]
+        )
+        xy_plane = np.concatenate(
+            (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
+        )
         for i in range(n_rotations):
             xyz_rotated[i] = rots[i] @ xy_plane
 
-            slices[i] = map_coordinates(map_3d_f, xyz_rotated[i, :, n_pix**2 : 2 * n_pix**2] + n_pix // 2).reshape(
-                (n_pix, n_pix)
-            )
+            slices[i] = map_coordinates(
+                map_3d_f, xyz_rotated[i, :, n_pix**2 : 2 * n_pix**2] + n_pix // 2
+            ).reshape((n_pix, n_pix))
 
         return slices, xyz_rotated
 
@@ -554,10 +568,10 @@ class IterativeRefinement:
     def insert_slice(slice_real, xy_rotated, n_pix):
         """Rotate slice and interpolate onto a 3D grid.
 
-        Rotated xy-planes are expected to be of nonzero depth (i.e. a rotated 
-        2D plane with some small added z-depth to give "volume" to the slice in 
-        order for interpolation to be feasible). The slice values are constant 
-        along the depth axis of the slice. 
+        Rotated xy-planes are expected to be of nonzero depth (i.e. a rotated
+        2D plane with some small added z-depth to give "volume" to the slice in
+        order for interpolation to be feasible). The slice values are constant
+        along the depth axis of the slice.
 
         Parameters
         ----------
@@ -580,8 +594,12 @@ class IterativeRefinement:
         """
         xyz = IterativeRefinement.generate_xyz_voxels(n_pix)
         slice_values = np.repeat(slice_real.reshape((n_pix**2,)), 3, axis=0)
-        inserted_slice_3d = griddata(xy_rotated, slice_values, xyz, fill_value=0).reshape((n_pix, n_pix, n_pix))
-        count_3d = griddata(xy_rotated, np.ones_like(slice_values), xyz, fill_value=0).reshape((n_pix, n_pix, n_pix))
+        inserted_slice_3d = griddata(
+            xy_rotated, slice_values, xyz, fill_value=0
+        ).reshape((n_pix, n_pix, n_pix))
+        count_3d = griddata(
+            xy_rotated, np.ones_like(slice_values), xyz, fill_value=0
+        ).reshape((n_pix, n_pix, n_pix))
         return inserted_slice_3d, count_3d
 
     @staticmethod
