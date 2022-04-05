@@ -231,7 +231,6 @@ class IterativeRefinement:
         half_map_3d_f_2 = torch.from_numpy(half_map_3d_f_2.reshape(map_shape))
         half_map_3d_r_2 = fourier_to_primal_3D(half_map_3d_f_2).numpy()[0]
 
-
         return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
 
     @staticmethod
