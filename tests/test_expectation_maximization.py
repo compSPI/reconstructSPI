@@ -187,6 +187,7 @@ def test_compute_fsc(test_ir, n_pix):
     fsc_1 = test_ir.compute_fsc(map_1, map_2)
     assert fsc_1.shape == (n_pix // 2,)
 
+
 def test_binary_mask_3d(test_ir):
     """Test binary_mask_3d.
     Tests the limit of infinite n_pix. Use high n_pix so good approx.
@@ -246,6 +247,7 @@ def test_binary_mask_3d(test_ir):
     volume_ratio = mask_r.sum() / mask_r_half.sum()
     volume_ratio_analytic = (radius / r_half) ** 3
     assert np.isclose(volume_ratio, volume_ratio_analytic, atol=0.005)
+
 
 def test_expand_1d_to_3d(test_ir, n_pix):
     """Test expansion of 1D array into spherical shell."""
