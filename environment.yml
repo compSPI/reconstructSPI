@@ -7,7 +7,6 @@ dependencies:
   - coverage
   - gemmi
   - numpy
-  - numba
   - pillow>=8.2.0
   - pip
   - pytest
@@ -18,4 +17,3 @@ dependencies:
       - git+https://github.com/compSPI/simSPI.git
       - git+https://github.com/compSPI/compSPI.git
       - geomstats
-      - torchvision
