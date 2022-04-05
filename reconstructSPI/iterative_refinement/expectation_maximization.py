@@ -85,15 +85,17 @@ class IterativeRefinement:
         ctfs = self.build_ctf_array()
         ctfs_1, ctfs_2 = IterativeRefinement.split_array(ctfs)
 
+        n_batch_1 = len(particles_1)
+        n_batch_2 = len(particles_2)
+
         particles_f_1 = primal_to_fourier_2D(
-            torch.from_numpy(particles_1.reshape((1, 1, n_pix, n_pix)))
+            torch.from_numpy(particles_1.reshape((n_batch_1, 1, n_pix, n_pix)))
         ).numpy()
         particles_f_2 = primal_to_fourier_2D(
-            torch.from_numpy(particles_2.reshape((1, 1, n_pix, n_pix)))
+            torch.from_numpy(particles_2.reshape((n_batch_2, 1, n_pix, n_pix)))
         ).numpy()
 
         n_pix = self.map_3d_init.shape[0]
-
         n_rotations = self.particles.shape[0]
 
         half_map_3d_r_1, half_map_3d_r_2 = (
@@ -101,26 +103,27 @@ class IterativeRefinement:
             self.map_3d_init.copy(),
         )
 
-        shape = (1, n_pix, n_pix, n_pix)
+        map_shape = (1, n_pix, n_pix, n_pix)
 
         half_map_3d_f_1 = primal_to_fourier_3D(
-            torch.from_numpy(half_map_3d_r_1.reshape(shape))
+            torch.from_numpy(half_map_3d_r_1.reshape(map_shape))
         ).numpy()
+
         half_map_3d_f_2 = primal_to_fourier_3D(
-            torch.from_numpy(half_map_3d_r_2.reshape(shape))
+            torch.from_numpy(half_map_3d_r_2.reshape(map_shape))
         ).numpy()
 
         for _ in range(self.max_itr):
 
             half_map_3d_f_1 = primal_to_fourier_3D(
-                torch.from_numpy(half_map_3d_r_1.reshape(shape))
-            ).numpy()
+                torch.from_numpy(half_map_3d_r_1.reshape(map_shape))
+            ).numpy()[0]
+
             half_map_3d_f_2 = primal_to_fourier_3D(
-                torch.from_numpy(half_map_3d_r_2.reshape(shape))
-            ).numpy()
+                torch.from_numpy(half_map_3d_r_2.reshape(map_shape))
+            ).numpy()[0]
 
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
-
             xy0_plane = IterativeRefinement.generate_xy_plane(n_pix)
 
             slices_1, xyz_rotated = IterativeRefinement.generate_slices(
@@ -216,10 +219,16 @@ class IterativeRefinement:
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
         fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d, n_pix)
-        map_3d_f_final = (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
-        map_3d_r_final = fourier_to_primal_3D(map_3d_f_final).numpy()
-        half_map_3d_r_1 = fourier_to_primal_3D(half_map_3d_f_1).numpy()
-        half_map_3d_r_2 = fourier_to_primal_3D(half_map_3d_f_2).numpy()
+
+        map_3d_f_final = ((half_map_3d_f_1 + half_map_3d_f_2) / 2) * fsc_3d
+        map_3d_f_final = torch.from_numpy(map_3d_f_final.reshape(map_shape))
+        map_3d_r_final = fourier_to_primal_3D(map_3d_f_final).numpy()[0]
+
+        half_map_3d_f_1 = torch.from_numpy(half_map_3d_f_1.reshape(map_shape))
+        half_map_3d_r_1 = fourier_to_primal_3D(half_map_3d_f_1).numpy()[0]
+
+        half_map_3d_f_2 = torch.from_numpy(half_map_3d_f_2.reshape(map_shape))
+        half_map_3d_r_2 = fourier_to_primal_3D(half_map_3d_f_2).numpy()[0]
 
         return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
 
@@ -273,7 +282,7 @@ class IterativeRefinement:
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
 
-        return (map_3d_f_filtered_1, map_3d_f_filtered_2)
+        return map_3d_f_filtered_1, map_3d_f_filtered_2
 
     @staticmethod
     def split_array(arr):
