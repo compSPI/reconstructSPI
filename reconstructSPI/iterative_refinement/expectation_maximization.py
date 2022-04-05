@@ -1,6 +1,12 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
 import numpy as np
+import torch
+from compSPI.transforms import (
+    fourier_to_primal_3D,
+    primal_to_fourier_2D,
+    primal_to_fourier_3D,
+)
 from geomstats.geometry import special_orthogonal
 from scipy.ndimage import map_coordinates
 from scipy.interpolate import griddata
@@ -76,40 +82,82 @@ class IterativeRefinement:
             Shape (n_pix // 2,)
         """
         particles_1, particles_2 = IterativeRefinement.split_array(self.particles)
+        n_pix = len(self.map_3d_init)
 
         ctfs = self.build_ctf_array()
         ctfs_1, ctfs_2 = IterativeRefinement.split_array(ctfs)
 
-        particles_f_1 = IterativeRefinement.fft_3d(particles_1)
-        particles_f_2 = IterativeRefinement.fft_3d(particles_2)
+        n_batch_1 = len(particles_1)
+        n_batch_2 = len(particles_2)
 
-        n_pix = self.map_3d_init.shape[0]
+        particles_f_1 = (
+            primal_to_fourier_2D(
+                torch.from_numpy(particles_1.reshape((n_batch_1, 1, n_pix, n_pix)))
+            )
+            .numpy()
+            .reshape((n_batch_1, n_pix, n_pix))
+        )
+        particles_f_2 = (
+            primal_to_fourier_2D(
+                torch.from_numpy(particles_2.reshape((n_batch_2, 1, n_pix, n_pix)))
+            )
+            .numpy()
+            .reshape((n_batch_2, n_pix, n_pix))
+        )
 
-        n_rotations = self.particles.shape[0]
+        n_rotations = len(self.particles)
 
         half_map_3d_r_1, half_map_3d_r_2 = (
             self.map_3d_init.copy(),
             self.map_3d_init.copy(),
         )
 
-        half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
-        half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
+        batch_map_shape = (1, n_pix, n_pix, n_pix)
+        map_shape = (n_pix, n_pix, n_pix)
+
+        half_map_3d_f_1 = (
+            primal_to_fourier_3D(
+                torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
+            )
+            .numpy()
+            .reshape(map_shape)
+        )
+
+        half_map_3d_f_2 = (
+            primal_to_fourier_3D(
+                torch.from_numpy(half_map_3d_r_2.reshape(batch_map_shape))
+            )
+            .numpy()
+            .reshape(map_shape)
+        )
 
         for _ in range(self.max_itr):
 
-            half_map_3d_f_1 = IterativeRefinement.fft_3d(half_map_3d_r_1)
-            half_map_3d_f_2 = IterativeRefinement.fft_3d(half_map_3d_r_2)
+            half_map_3d_f_1 = (
+                primal_to_fourier_3D(
+                    torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
+                )
+                .numpy()
+                .reshape(map_shape)
+            )
+
+            half_map_3d_f_2 = (
+                primal_to_fourier_3D(
+                    torch.from_numpy(half_map_3d_r_2.reshape(batch_map_shape))
+                )
+                .numpy()
+                .reshape(map_shape)
+            )
 
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
-
             xy0_plane = IterativeRefinement.generate_xy_plane(n_pix)
 
             slices_1, xyz_rotated = IterativeRefinement.generate_slices(
-                half_map_3d_f_1, xy0_plane, n_pix, rots
+                half_map_3d_f_1, xy0_plane, rots
             )
 
             slices_2, xyz_rotated = IterativeRefinement.generate_slices(
-                half_map_3d_f_2, xy0_plane, n_pix, rots
+                half_map_3d_f_2, xy0_plane, rots
             )
 
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
@@ -162,7 +210,7 @@ class IterativeRefinement:
                     )
                 )
 
-                for one_slice_idx in range(bayes_factors_1.shape[0]):
+                for one_slice_idx in range(len(bayes_factors_1)):
                     xyz = xyz_rotated[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
                         particle_f_deconv_1.real, xyz, n_pix
@@ -173,7 +221,7 @@ class IterativeRefinement:
                     map_3d_f_updated_1 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
                     counts_3d_updated_1 += count_3d_r + count_3d_i
 
-                for one_slice_idx in range(bayes_factors_2.shape[0]):
+                for one_slice_idx in range(len(bayes_factors_2)):
                     xyz = xyz_rotated[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
                         particle_f_deconv_2.real, xyz, n_pix
@@ -197,10 +245,22 @@ class IterativeRefinement:
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
         fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
-        map_3d_f_final = (half_map_3d_f_1 + half_map_3d_f_2 / 2) * fsc_3d
-        map_3d_r_final = IterativeRefinement.ifft_3d(map_3d_f_final)
-        half_map_3d_r_1 = IterativeRefinement.ifft_3d(half_map_3d_f_1)
-        half_map_3d_r_2 = IterativeRefinement.ifft_3d(half_map_3d_f_2)
+
+        map_3d_f_final = ((half_map_3d_f_1 + half_map_3d_f_2) / 2) * fsc_3d
+        map_3d_f_final = torch.from_numpy(map_3d_f_final.reshape(map_shape))
+        map_3d_r_final = (
+            fourier_to_primal_3D(map_3d_f_final).numpy().reshape((n_pix, n_pix, n_pix))
+        )
+
+        half_map_3d_f_1 = torch.from_numpy(half_map_3d_f_1.reshape(map_shape))
+        half_map_3d_r_1 = (
+            fourier_to_primal_3D(half_map_3d_f_1).numpy().reshape((n_pix, n_pix, n_pix))
+        )
+
+        half_map_3d_f_2 = torch.from_numpy(half_map_3d_f_2.reshape(map_shape))
+        half_map_3d_r_2 = (
+            fourier_to_primal_3D(half_map_3d_f_2).numpy().reshape((n_pix, n_pix, n_pix))
+        )
 
         return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
 
@@ -254,7 +314,7 @@ class IterativeRefinement:
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
 
-        return (map_3d_f_filtered_1, map_3d_f_filtered_2)
+        return map_3d_f_filtered_1, map_3d_f_filtered_2
 
     @staticmethod
     def split_array(arr):
@@ -379,7 +439,7 @@ class IterativeRefinement:
         return xyz
 
     @staticmethod
-    def generate_slices(map_3d_f, xy_plane, n_pix, rots, z_offset=0.05):
+    def generate_slices(map_3d_f, xy_plane, rots, z_offset=0.05):
         """Generate slice coordinates by rotating xy plane.
 
         Interpolate values from map_3d_f onto 3D coordinates.
@@ -405,11 +465,12 @@ class IterativeRefinement:
                 xy_plane[0] is x coordinate
                 xy_plane[1] is y coordinate
                 xy_plane[2] is z coordinate, which is all zero
-        n_pix : int
-            Number of pixels along one edge of the plane.
         rots : arr
             Array describing rotations.
             Shape (n_rotations, n_pix**2, 3)
+        z_offset : float
+            Symmetrical z-depth given to the xy_plane before rotating.
+            0 < z_offset < 1
 
         Returns
         -------
@@ -448,8 +509,9 @@ class IterativeRefinement:
         As far as the presence of noise in the edge pixels, masking that crops
         close enough to the centre will keeping a safe distance from the edge.
         """
-        n_rotations = rots.shape[0]
-        slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
+        n_rotations = len(rots)
+        n_pix = len(map_3d_f)
+        slices = np.empty((n_rotations, n_pix, n_pix))
         overwrite_empty_with_zero = 0
         slices[:, :, 0] = overwrite_empty_with_zero
         xyz_rotated = np.empty((n_rotations, 3, 3 * n_pix**2))
@@ -625,8 +687,8 @@ class IterativeRefinement:
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/fsc.ipynb
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/mFSC.ipynb
         # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/guinier_fsc_sharpen.ipynb
-        n_pix_1 = map_3d_f_1.shape[0]
-        n_pix_2 = map_3d_f_2.shape[0]
+        n_pix_1 = len(map_3d_f_1)
+        n_pix_2 = len(map_3d_f_2)
         fsc_1d_1 = np.ones(n_pix_1 // 2)
         fsc_1d_2 = np.ones(n_pix_2 // 2)
         noise_estimates = fsc_1d_1 * fsc_1d_2
@@ -700,39 +762,3 @@ class IterativeRefinement:
             arr_3d = np.where(mask, arr_1d[i], arr_3d)
 
         return arr_3d
-
-    @staticmethod
-    def fft_3d(array):
-        """3D Fast Fourier Transform.
-
-        Parameters
-        ----------
-        array : arr
-            Input array.
-            Shape (n_pix, n_pix, n_pix)
-
-        Returns
-        -------
-        fft_array : arr
-            Fourier transform of array.
-            Shape (n_pix, n_pix, n_pix)
-        """
-        return np.zeros(array.shape, dtype=np.cdouble)
-
-    @staticmethod
-    def ifft_3d(fft_array):
-        """3D Inverse Fast Fourier Transform.
-
-        Parameters
-        ----------
-        fft_array : arr
-            Fourier transform of array.
-            Shape (n_pix, n_pix, n_pix)
-
-        Returns
-        -------
-        array : arr
-            Original array.
-            Shape (n_pix, n_pix, n_pix)
-        """
-        return np.zeros(fft_array.shape)
