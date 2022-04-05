@@ -104,7 +104,6 @@ class IterativeRefinement:
             .reshape((n_batch_2, n_pix, n_pix))
         )
 
-        n_pix = len(self.map_3d_init)
         n_rotations = len(self.particles)
 
         half_map_3d_r_1, half_map_3d_r_2 = (
@@ -153,11 +152,11 @@ class IterativeRefinement:
             xy0_plane = IterativeRefinement.generate_xy_plane(n_pix)
 
             slices_1, xyz_rotated = IterativeRefinement.generate_slices(
-                half_map_3d_f_1, xy0_plane, n_pix, rots
+                half_map_3d_f_1, xy0_plane, rots
             )
 
             slices_2, xyz_rotated = IterativeRefinement.generate_slices(
-                half_map_3d_f_2, xy0_plane, n_pix, rots
+                half_map_3d_f_2, xy0_plane, rots
             )
 
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
@@ -411,7 +410,7 @@ class IterativeRefinement:
         return xy_plane
 
     @staticmethod
-    def generate_slices(map_3d_f, xy_plane, n_pix, rots):
+    def generate_slices(map_3d_f, xy_plane, rots):
         """Generate slice coordinates by rotating xy plane.
 
         Interpolate values from map_3d_f onto 3D coordinates.
@@ -481,7 +480,8 @@ class IterativeRefinement:
         close enough to the centre will keeping a safe distance from the edge.
         """
         n_rotations = len(rots)
-        slices = np.empty((n_rotations, len(map_3d_f), map_3d_f.shape[1]))
+        n_pix = len(map_3d_f)
+        slices = np.empty((n_rotations, n_pix, n_pix))
         overwrite_empty_with_zero = 0
         slices[:, :, 0] = overwrite_empty_with_zero
         xyz_rotated = np.empty((n_rotations, 3, n_pix ** 2))

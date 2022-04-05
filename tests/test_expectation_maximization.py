@@ -114,7 +114,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     map_3d = np.ones((n_pix, n_pix, n_pix))
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, n_pix, rots)
+    slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, rots)
     assert slices.shape == (n_particles, n_pix, n_pix)
     assert xyz_rotated_planes.shape == (n_particles, 3, n_pix ** 2)
 
@@ -122,9 +122,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     rand_val = np.random.uniform(low=1, high=2)
     map_3d_dc[n_pix // 2, n_pix // 2, n_pix // 2] = rand_val
     expected_dc = rand_val * np.ones(len(slices))
-    slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_3d_dc, xy_plane, n_pix, rots
-    )
+    slices, xyz_rotated_planes = test_ir.generate_slices(map_3d_dc, xy_plane, rots)
     projected_dc = slices[:, n_pix // 2, n_pix // 2]
     assert np.allclose(projected_dc, expected_dc)
 
@@ -142,7 +140,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     expected_slice_line_y[n_pix // 2] = 1
 
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones_xzplane, xy_plane, n_pix, rot_90deg_about_y
+        map_plane_ones_xzplane, xy_plane, rot_90deg_about_y
     )
     omit_idx_artefact = 1
     assert np.allclose(
@@ -159,7 +157,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     map_plane_ones_xyplane[:, :, n_pix // 2] = 1
     expected_slice = np.ones((n_pix, n_pix))
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones_xyplane, xy_plane, n_pix, rot_180deg_about_z
+        map_plane_ones_xyplane, xy_plane, rot_180deg_about_z
     )
     assert np.allclose(
         slices[0, omit_idx_artefact:, omit_idx_artefact:],
