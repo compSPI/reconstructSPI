@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from geomstats.geometry import special_orthogonal
 from scipy.ndimage import map_coordinates
+from scipy.interpolate import griddata
 from simSPI.transfer import eval_ctf
 
 
@@ -351,7 +352,35 @@ class IterativeRefinement:
         return xy_plane
 
     @staticmethod
-    def generate_slices(map_3d_f, xy_plane, n_pix, rots):
+    def generate_xyz_voxels(n_pix):
+        """Generate (x,y,z) cube.
+
+        x, y, z axis values range [-n // 2, ..., n // 2 - 1]
+
+        Parameters
+        ----------
+        n_pix : int
+            Number of pixels along one edge of the cube.
+
+        Returns
+        -------
+        xyz : arr
+            Array describing xyz cube in space.
+            Shape (3, n_pix**3)
+        """
+        axis_pts = np.arange(-n_pix // 2, n_pix // 2)
+        grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
+
+        xyz = np.zeros((3, n_pix**2))
+
+        for d in range(3):
+            xyz[d, :] = grid[d].flatten()
+        xyz[:, [0, 1]] = xyz[:, [1, 0]]
+
+        return xyz
+
+    @staticmethod
+    def generate_slices(map_3d_f, xy_plane, n_pix, rots, z_offset = 0.05):
         """Generate slice coordinates by rotating xy plane.
 
         Interpolate values from map_3d_f onto 3D coordinates.
@@ -390,8 +419,8 @@ class IterativeRefinement:
             of projection of rotated map_3d_f.
             Shape (n_rotations, n_pix, n_pix)
         xyz_rotated : arr
-            Rotated xy planes.
-            Shape (n_rotations, 3, n_pix**2)
+            Rotated xy planes, with 3D depth added according to z_offset.
+            Shape (n_rotations, 3, 3 * n_pix**2)
 
 
         Notes
@@ -424,11 +453,13 @@ class IterativeRefinement:
         slices = np.empty((n_rotations, map_3d_f.shape[0], map_3d_f.shape[1]))
         overwrite_empty_with_zero = 0
         slices[:, :, 0] = overwrite_empty_with_zero
-        xyz_rotated = np.empty((n_rotations, 3, n_pix**2))
+        xyz_rotated = np.empty((n_rotations, 3, 3*n_pix**2))
+        offset = np.array([[0,],[0,],[z_offset,]])
+        xy_plane = np.concatenate((xy_plane + offset, xy_plane, xy_plane - offset), axis=1)
         for i in range(n_rotations):
             xyz_rotated[i] = rots[i] @ xy_plane
 
-            slices[i] = map_coordinates(map_3d_f, xyz_rotated[i] + n_pix // 2).reshape(
+            slices[i] = map_coordinates(map_3d_f, xyz_rotated[i, :, n_pix**2 : 2 * n_pix**2] + n_pix // 2).reshape(
                 (n_pix, n_pix)
             )
 
@@ -521,15 +552,20 @@ class IterativeRefinement:
         return projection_wfilter_f
 
     @staticmethod
-    def insert_slice(slice_real, xyz, n_pix):
+    def insert_slice(slice_real, xy_rotated, n_pix):
         """Rotate slice and interpolate onto a 3D grid.
+
+        Rotated xy-planes are expected to be of nonzero depth (i.e. a rotated 
+        2D plane with some small added z-depth to give "volume" to the slice in 
+        order for interpolation to be feasible). The slice values are constant 
+        along the depth axis of the slice. 
 
         Parameters
         ----------
         slice_real : float64 arr
             Shape (n_pix, n_pix) the slice of interest.
-        xyz : arr
-            Shape (3, n_pix**2) plane corresponding to slice rotation.
+        xy_rotated : arr
+            Shape (3, 3 * n_pix**2) nonzero-depth "plane" of rotated slice coords.
         n_pix : int
             Number of pixels.
 
@@ -543,14 +579,10 @@ class IterativeRefinement:
             otherwise 0.
             Shape (n_pix, n_pix, n_pix)
         """
-        inserted_slice_tensor = torch.sparse_coo_tensor(
-            xyz + n_pix // 2, slice_real.reshape((n_pix**2,)), (n_pix, n_pix, n_pix)
-        )
-        count_tensor = torch.sparse_coo_tensor(
-            xyz + n_pix // 2, np.ones((n_pix**2,)), (n_pix, n_pix, n_pix)
-        )
-        inserted_slice_3d = inserted_slice_tensor.to_dense().numpy()
-        count_3d = count_tensor.to_dense().numpy()
+        xyz = IterativeRefinement.generate_xyz_voxels(n_pix)
+        slice_values = np.repeat(slice_real.reshape((n_pix**2,)), 3, axis=0)
+        inserted_slice_3d = griddata(xy_rotated, slice_values, xyz, fill_value=0).reshape((n_pix, n_pix, n_pix))
+        count_3d = griddata(xy_rotated, np.ones_like(slice_values), xyz, fill_value=0).reshape((n_pix, n_pix, n_pix))
         return inserted_slice_3d, count_3d
 
     @staticmethod
