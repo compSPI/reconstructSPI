@@ -260,8 +260,17 @@ def test_insert_slice(test_ir, n_pix):
     xyz_voxels = test_ir.generate_xyz_voxels(n_pix)
 
     inserted, count = test_ir.insert_slice(slices[0], xyz_rotated_planes[0], xyz_voxels)
-    assert np.allclose(inserted, map_plane_ones)
-    assert np.allclose(count, map_plane_ones)
+    
+    omit_idx_artefact = 1
+
+    assert np.allclose(
+        inserted[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
+        map_plane_ones[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:]
+    )
+    assert np.allclose(
+        count[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
+        map_plane_ones[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:]
+    )
 
 
 def test_compute_fsc(test_ir, n_pix):
