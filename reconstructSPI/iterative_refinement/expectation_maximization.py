@@ -231,9 +231,7 @@ class IterativeRefinement:
                     map_3d_f_updated_1 += np.sum(
                         inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
                     )
-                    counts_3d_updated_1 += np.sum(
-                        count_3d_r + count_3d_i, axis=0
-                    )
+                    counts_3d_updated_1 += np.sum(count_3d_r + count_3d_i, axis=0)
 
                 for one_slice_idx in range(len(bayes_factors_2)):
                     xyz = xyz_rotated[one_slice_idx]
@@ -246,9 +244,7 @@ class IterativeRefinement:
                     map_3d_f_updated_2 += np.sum(
                         inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
                     )
-                    counts_3d_updated_2 += np.sum(
-                        count_3d_r + count_3d_i, axis=0
-                    )
+                    counts_3d_updated_2 += np.sum(count_3d_r + count_3d_i, axis=0)
 
                 map_3d_f_norm_1 = IterativeRefinement.normalize_map(
                     map_3d_f_updated_1, counts_3d_updated_1, count_norm_const
