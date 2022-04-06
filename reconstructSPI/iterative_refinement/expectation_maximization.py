@@ -226,8 +226,8 @@ class IterativeRefinement:
                     inserted_slice_3d_i, count_3d_i = insert_slice_v(
                         particle_f_deconv_1.imag, xyz, xyz_voxels
                     )
-                    map_3d_f_updated_1 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
-                    counts_3d_updated_1 += count_3d_r + count_3d_i
+                    map_3d_f_updated_1 += inserted_slice_3d_r[0] + 1j * inserted_slice_3d_i[0]
+                    counts_3d_updated_1 += count_3d_r[0] + count_3d_i[0]
 
                 for one_slice_idx in range(len(bayes_factors_2)):
                     xyz = xyz_rotated[one_slice_idx]
@@ -237,8 +237,8 @@ class IterativeRefinement:
                     inserted_slice_3d_i, count_3d_i = insert_slice_v(
                         particle_f_deconv_2.imag, xyz, xyz_voxels
                     )
-                    map_3d_f_updated_2 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
-                    counts_3d_updated_2 += count_3d_r + count_3d_i
+                    map_3d_f_updated_2 += inserted_slice_3d_r[0] + 1j * inserted_slice_3d_i[0]
+                    counts_3d_updated_2 += count_3d_r[0] + count_3d_i[0]
 
                 map_3d_f_norm_1 = IterativeRefinement.normalize_map(
                     map_3d_f_updated_1, counts_3d_updated_1, count_norm_const
