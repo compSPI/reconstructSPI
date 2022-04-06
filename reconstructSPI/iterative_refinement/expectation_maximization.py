@@ -131,7 +131,7 @@ class IterativeRefinement:
             .reshape(map_shape)
         )
 
-        xyz_voxels = IterativeRefinement.generate_xyz_voxels(n_pix)
+        xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
 
         insert_slice_v = np.vectorize(
             IterativeRefinement.insert_slice,
@@ -160,7 +160,7 @@ class IterativeRefinement:
             )
 
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
-            xy0_plane = IterativeRefinement.generate_xy_plane(n_pix)
+            xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
 
             slices_1, xyz_rotated = IterativeRefinement.generate_slices(
                 half_map_3d_f_1, xy0_plane, rots
@@ -398,59 +398,45 @@ class IterativeRefinement:
         return rots
 
     @staticmethod
-    def generate_xy_plane(n_pix):
-        """Generate (x,y,0) plane.
+    def generate_cartesian_grid(n_pix, d):
+        """Generate (x,y,0) plane or (x,y,z) cube.
 
-        x, y axis values range [-n // 2, ..., n // 2 - 1]
+        Axis values range [-n // 2, ..., n // 2 - 1]
 
         Parameters
         ----------
         n_pix : int
             Number of pixels along one edge of the plane.
-
-        Returns
-        -------
-        xy_plane : arr
-            Array describing xy plane in space.
-            Shape (3, n_pix**2)
-        """
-        axis_pts = np.arange(-n_pix // 2, n_pix // 2)
-        grid = np.meshgrid(axis_pts, axis_pts)
-
-        xy_plane = np.zeros((3, n_pix**2))
-
-        for d in range(2):
-            xy_plane[d, :] = grid[d].flatten()
-
-        return xy_plane
-
-    @staticmethod
-    def generate_xyz_voxels(n_pix):
-        """Generate (x,y,z) cube.
-
-        x, y, z axis values range [-n // 2, ..., n // 2 - 1]
-
-        Parameters
-        ----------
-        n_pix : int
-            Number of pixels along one edge of the cube.
+        d : int
+            Dimension of output. 2 or 3.
 
         Returns
         -------
         xyz : arr
-            Array describing xyz cube in space.
-            Shape (3, n_pix**3)
+            Array describing xy plane or xyz cube in space.
+            Shape (3, n_pix**d)
         """
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
-        grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
+        if d == 2:
+            grid = np.meshgrid(axis_pts, axis_pts)
 
-        xyz = np.zeros((3, n_pix**3))
+            xy_plane = np.zeros((3, n_pix**2))
 
-        for di in range(3):
-            xyz[di] = grid[di].flatten()
-        xyz[[0, 1]] = xyz[[1, 0]]
+            for d in range(2):
+                xy_plane[d, :] = grid[d].flatten()
 
-        return xyz
+            return xy_plane
+        if d == 3:
+            grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
+
+            xyz = np.zeros((3, n_pix**3))
+
+            for di in range(3):
+                xyz[di] = grid[di].flatten()
+            xyz[[0, 1, 2]] = xyz[[2, 0, 1]]
+
+            return xyz
+        raise ValueError(f"Dimension {d} received was not 2 or 3.")
 
     @staticmethod
     def generate_slices(map_3d_f, xy_plane, rots, z_offset=0.05):
@@ -520,23 +506,9 @@ class IterativeRefinement:
         """
         n_rotations = len(rots)
         n_pix = len(map_3d_f)
-        slices = np.empty((n_rotations, n_pix, n_pix), dtype=np.complex_)
-        overwrite_empty_with_zero = 0
-        slices[:, :, 0] = overwrite_empty_with_zero
+        slices = np.empty((n_rotations, n_pix, n_pix), dtype=float)
         xyz_rotated = np.empty((n_rotations, 3, 3 * n_pix**2))
-        offset = np.array(
-            [
-                [
-                    0,
-                ],
-                [
-                    0,
-                ],
-                [
-                    z_offset,
-                ],
-            ]
-        )
+        offset = np.array([[ 0, 0, z_offset ], ]).T
         xy_plane = np.concatenate(
             (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
         )
@@ -665,8 +637,7 @@ class IterativeRefinement:
             Rotated slice in 3D voxel array.
             Shape (n_pix, n_pix, n_pix)
         count_3d : arr
-            Voxel array to count slice presence: 1 if slice present,
-            otherwise 0.
+            Voxel array to count slice presence.
             Shape (n_pix, n_pix, n_pix)
         """
         n_pix = slice_real.shape[0]
