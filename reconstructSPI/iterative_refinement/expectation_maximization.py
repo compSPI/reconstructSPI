@@ -353,7 +353,7 @@ class IterativeRefinement:
         ctfs = []
 
         for i in range(n_ctfs):
-            ctfs[i] = eval_ctf(**self.ctf_info[i])
+            ctfs.append(eval_ctf(**self.ctf_info[i]))
 
         return np.array(ctfs)
 
