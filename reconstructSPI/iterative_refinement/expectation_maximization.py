@@ -670,7 +670,8 @@ class IterativeRefinement:
         slices_real : float64 arr
             Shape (n_slices, n_pix, n_pix) the slices of interest.
         xy_rots : arr
-            Shape (n_slices, 3, 3*n_pix**2) nonzero-depth "planes" of rotated slice coords.
+            Shape (n_slices, 3, 3*n_pix**2) nonzero-depth "planes" of rotated
+            slice coords.
         xyz : arr
             Shape (3, n_pix**3) voxels of 3D map.
 
