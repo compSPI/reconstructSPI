@@ -591,7 +591,8 @@ class IterativeRefinement:
         small_number : float
             Small number for approximating wiener filter effects
         fill_zeros : float
-            Small number used in place of zeros that come from small number computations.
+            Small number used in place of zeros that come from small number
+            computations.
 
         Returns
         -------
@@ -614,7 +615,10 @@ class IterativeRefinement:
 
         Uses section 2.6:
 
-        Sindelar, C. V., & Grigorieff, N. (2011). An adaptation of the Wiener filter suitable for analyzing images of isolated single particles. Journal of Structural Biology, 176(1), 60–74. http://doi.org/10.1016/j.jsb.2011.06.010
+        Sindelar, C. V., & Grigorieff, N. (2011). An adaptation of the Wiener
+        filter suitable for analyzing images of isolated single particles.
+        Journal of Structural Biology, 176(1), 60–74.
+        http://doi.org/10.1016/j.jsb.2011.06.010
 
         Parameters
         ----------
