@@ -314,7 +314,7 @@ class IterativeRefinement:
         """
         fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
 
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
+        fsc_3d = IterativeRefinement.expand_1d_to_Nd(fsc_1d)
 
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
