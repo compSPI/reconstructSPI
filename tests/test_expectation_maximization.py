@@ -358,7 +358,7 @@ def test_binary_mask(test_ir):
     # ND test
     exceptionThrown = False
     try:
-        arr_nd = test_ir.binary_mask(center, radius, shape, 4)
+        test_ir.binary_mask(center, radius, shape, 4)
     except ValueError:
         exceptionThrown = True
     assert exceptionThrown
@@ -406,7 +406,8 @@ def test_expand_1d_to_nd(test_ir, n_pix):
 
         exceptionThrown = False
         try:
-            arr_nd = test_ir.expand_1d_to_nd(arr1d, d=4)
+            arr_1d = np.arange(n_pix // 2)
+            test_ir.expand_1d_to_nd(arr_1d, d=4)
         except ValueError:
             exceptionThrown = True
         assert exceptionThrown

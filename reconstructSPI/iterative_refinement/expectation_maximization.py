@@ -644,7 +644,7 @@ class IterativeRefinement:
 
         for radius in range(n_pix // 2):
             mask = IterativeRefinement.binary_mask(
-                (n_pix // 2, n_pix // 2), R, projections_f[0].shape, 2
+                (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
             )
             ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
             ctf_img_sq_sum[radius] = np.sum(
