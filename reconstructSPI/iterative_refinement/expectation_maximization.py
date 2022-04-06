@@ -559,8 +559,14 @@ class IterativeRefinement:
         return bayesian_weights, z_norm_const, em_loss
 
     @staticmethod
-    def apply_wiener_filter(projection, ctf, small_number):
+    def apply_wiener_filter(projection, ctf, small_number=None):
         """Apply Wiener filter to particle projection.
+
+        Tuning sets "small number" = 1/SNR(projection) as per:
+        https://doi.org/10.1016/j.jsb.2011.06.010
+
+        SNR is computed by way of reimplementing the (now deprecated)
+        scipy.signaltonoise method. If SNR=0, then small_number is set to 0.01.
 
         Parameters
         ----------
@@ -576,6 +582,16 @@ class IterativeRefinement:
         projection_wfilter_f : arr
             Shape (n_pix, n_pix) the filtered projection.
         """
+        if small_number is None:
+            a = np.asanyarray(projection)
+            m = a.mean(None)
+            sd = a.std(axis=None, ddof=0)
+            snr =  np.where(sd == 0, 0, m/sd)
+            if snr != 0:
+                small_number = 1 / snr
+            else:
+                small_number = 0.01
+
         wfilter = ctf / (ctf * ctf + small_number)
         projection_wfilter_f = projection * wfilter
         return projection_wfilter_f
