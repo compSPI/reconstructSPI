@@ -264,10 +264,14 @@ def test_insert_slice(test_ir, n_pix):
     map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
     map_plane_ones[n_pix // 2] = np.ones((n_pix, n_pix))
 
-    rot_mat = test_ir.grid_SO3_uniform(1)[0]
+    rot_90deg_about_y = np.array(
+        [
+            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+        ]
+    )
 
     slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones, xy_plane, rot_mat
+        map_plane_ones, xy_plane, rot_90deg_about_y
     )
 
     xyz_voxels = test_ir.generate_cartesian_grid(n_pix, 3)
