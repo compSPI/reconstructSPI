@@ -133,6 +133,12 @@ class IterativeRefinement:
 
         xyz_voxels = IterativeRefinement.generate_xyz_voxels(n_pix)
 
+        insert_slice_v = np.vectorize(
+            IterativeRefinement.insert_slice,
+            excluded=["xyz",],
+            signature="(n,n),(3,m),(3,k)->(n,n,n),(n,n,n)"
+        )
+
         for _ in range(self.max_itr):
 
             half_map_3d_f_1 = (
@@ -214,10 +220,10 @@ class IterativeRefinement:
 
                 for one_slice_idx in range(len(bayes_factors_1)):
                     xyz = xyz_rotated[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
+                    inserted_slice_3d_r, count_3d_r = insert_slice_v(
                         particle_f_deconv_1.real, xyz, xyz_voxels
                     )
-                    inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
+                    inserted_slice_3d_i, count_3d_i = insert_slice_v(
                         particle_f_deconv_1.imag, xyz, xyz_voxels
                     )
                     map_3d_f_updated_1 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
@@ -225,10 +231,10 @@ class IterativeRefinement:
 
                 for one_slice_idx in range(len(bayes_factors_2)):
                     xyz = xyz_rotated[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
+                    inserted_slice_3d_r, count_3d_r = insert_slice_v(
                         particle_f_deconv_2.real, xyz, xyz_voxels
                     )
-                    inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
+                    inserted_slice_3d_i, count_3d_i = insert_slice_v(
                         particle_f_deconv_2.imag, xyz, xyz_voxels
                     )
                     map_3d_f_updated_2 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
