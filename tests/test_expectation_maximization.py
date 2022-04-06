@@ -258,7 +258,7 @@ def test_compute_fsc(test_ir, n_pix):
 
 
 def test_binary_mask(test_ir):
-    """Test binary_mask in 3d.
+    """Test binary_mask in 3d and 2d.
 
     Tests the limit of infinite n_pix. Use high n_pix so good approx.
     1. Sums shell through an axis, then converts to circle,
@@ -270,6 +270,7 @@ def test_binary_mask(test_ir):
 
     3. Make filled sphere of sizes r and r/2 and check ratio of volume.
     """
+    # 3D tests
     n_pix = 512
 
     center = (n_pix // 2, n_pix // 2, n_pix // 2)
@@ -320,11 +321,57 @@ def test_binary_mask(test_ir):
     volume_ratio_analytic = (radius / r_half) ** 3
     assert np.isclose(volume_ratio, volume_ratio_analytic, atol=0.005)
 
+    # 2D tests 
+    center = (n_pix // 2, n_pix // 2)
+    radius = n_pix // 2
+    shape = (n_pix, n_pix)
+    for fill in [True, False]:
+        mask = test_ir.binary_mask(
+            center, radius, shape, 2, fill=fill, shell_thickness=1
+        )
+        
+        circle_to_square_ratio = mask.sum() > 0
+        assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
 
-def test_expand_1d_to_Nd(test_ir, n_pix):
+    r_half = radius / 2
+    for shell_thickness in [1, 2]:
+        mask_r = test_ir.binary_mask(
+            center, radius, shape, 2, fill=False, shell_thickness=1
+        )
+        mask_r_half = test_ir.binary_mask(
+            center, r_half, shape, 2, fill=False, shell_thickness=1
+        )
+        perimeter_ratio = mask_r.sum() / mask_r_half.sum()
+        assert np.isclose(2, perimeter_ratio, atol=0.1)
+        if shell_thickness == 1:
+            assert np.isclose(
+                mask_r.sum() / (2 * np.pi * radius), 1, atol=0.1
+            )
+            assert np.isclose(
+                mask_r_half.sum() / (2 * np.pi * r_half), 1, atol=0.1
+            )
+
+    mask_r = test_ir.binary_mask(center, radius, shape, 3, fill=True, shell_thickness=1)
+    mask_r_half = test_ir.binary_mask(
+        center, r_half, shape, 2, fill=True, shell_thickness=1
+    )
+    area_ratio = mask_r.sum() / mask_r_half.sum()
+    area_ratio_analytic = (radius / r_half) ** 2
+    assert np.isclose(area_ratio, area_ratio_analytic, atol=0.005)
+
+    # ND test
+    exceptionThrown = False
+    try:
+        arr_nd = test_ir.binary_mask(center, radius, shape, 4)
+    except ValueError:
+        exceptionThrown = True
+    assert exceptionThrown
+
+
+def test_expand_1d_to_nd(test_ir, n_pix):
     """Test expansion of 1D array into spherical or circular shell."""
     for arr_1d in [np.ones(n_pix // 2), np.arange(n_pix // 2)]:
-        arr_3d = test_ir.expand_1d_to_Nd(arr_1d, d=3)
+        arr_3d = test_ir.expand_1d_to_nd(arr_1d, d=3)
 
         assert arr_3d.shape == (n_pix, n_pix, n_pix)
         assert np.allclose(arr_1d, arr_3d[n_pix // 2 :, n_pix // 2, n_pix // 2])
@@ -347,7 +394,7 @@ def test_expand_1d_to_Nd(test_ir, n_pix):
             arr_1d_rev, arr_3d[n_pix // 2, n_pix // 2, 1 : n_pix // 2 + 1]
         )
 
-        arr_2d = test_ir.expand_1d_to_Nd(arr_1d, d=2)
+        arr_2d = test_ir.expand_1d_to_nd(arr_1d, d=2)
 
         assert arr_2d.shape == (n_pix, n_pix)
         assert np.allclose(arr_1d, arr_2d[n_pix // 2 :, n_pix // 2])
@@ -361,6 +408,12 @@ def test_expand_1d_to_Nd(test_ir, n_pix):
         assert np.allclose(arr_1d_rev, arr_2d[1 : n_pix // 2 + 1, n_pix // 2])
         assert np.allclose(arr_1d_rev, arr_2d[n_pix // 2, 1 : n_pix // 2 + 1])
 
+        exceptionThrown = False
+        try:
+            arr_nd = test_ir.expand_1d_to_nd(arr1d, d=4)
+        except ValueError:
+            exceptionThrown = True
+        assert exceptionThrown
 
 def test_iterative_refinement(test_ir, n_pix):
     """Test complete iterative refinement algorithm."""
