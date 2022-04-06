@@ -135,8 +135,10 @@ class IterativeRefinement:
 
         insert_slice_v = np.vectorize(
             IterativeRefinement.insert_slice,
-            excluded=["xyz",],
-            signature="(n,n),(3,m),(3,k)->(n,n,n),(n,n,n)"
+            excluded=[
+                "xyz",
+            ],
+            signature="(n,n),(3,m),(3,k)->(n,n,n),(n,n,n)",
         )
 
         for _ in range(self.max_itr):
