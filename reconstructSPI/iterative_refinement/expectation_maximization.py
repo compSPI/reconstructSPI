@@ -128,8 +128,12 @@ class IterativeRefinement:
             .reshape(map_shape)
         )
 
-        wiener_small_numbers = IterativeRefinement.compute_ssnr(self.particles, ctfs, 0.01)
-        wiener_small_numbers = np.where(wiener_small_numbers == 0, 0.1, wiener_small_numbers)
+        wiener_small_numbers = IterativeRefinement.compute_ssnr(
+            self.particles, ctfs, 0.01
+        )
+        wiener_small_numbers = np.where(
+            wiener_small_numbers == 0, 0.1, wiener_small_numbers
+        )
         wiener_small_numbers = 1 / wiener_small_numbers
 
         for _ in range(self.max_itr):
@@ -583,7 +587,7 @@ class IterativeRefinement:
         return projection_wfilter_f
 
     @staticmethod
-    def compute_ssnr(projections, ctfs, small_number = 0.01):
+    def compute_ssnr(projections, ctfs, small_number=0.01):
         """Compute spectral signal to noise ratio (SSNR) for each pixel of projections.
 
         Uses section 2.6:
@@ -605,7 +609,9 @@ class IterativeRefinement:
         """
         n_pix = len(projections[0])
 
-        signal_values = np.sum(ctfs * projections, axis=0) / np.sum(ctfs ** 2 + small_number, axis=0)
+        signal_values = np.sum(ctfs * projections, axis=0) / np.sum(
+            ctfs**2 + small_number, axis=0
+        )
 
         ctf_sq_sum = np.zeros(len(projections) // 2)
         ctf_img_sq_sum = np.zeros(len(projections) // 2)
@@ -613,19 +619,24 @@ class IterativeRefinement:
         shell_pixels = np.zeros(len(projections) // 2)
 
         for R in range(len(projections) // 2):
-            mask = IterativeRefinement.binary_mask((n_pix // 2, n_pix // 2), R, projections[0].shape, 2)
+            mask = IterativeRefinement.binary_mask(
+                (n_pix // 2, n_pix // 2), R, projections[0].shape, 2
+            )
             ctf_sq_sum[R] = np.sum(mask * np.sum(ctfs**2, axis=0))
-            ctf_img_sq_sum[R] = np.sum(mask * np.sum(ctfs**2 * np.abs(projections)**2, axis=0))
-            diff_sq_sum[R] = np.sum(mask * np.sum(np.abs(projections - ctfs * signal_values)**2, axis=0))
+            ctf_img_sq_sum[R] = np.sum(
+                mask * np.sum(ctfs**2 * np.abs(projections) ** 2, axis=0)
+            )
+            diff_sq_sum[R] = np.sum(
+                mask * np.sum(np.abs(projections - ctfs * signal_values) ** 2, axis=0)
+            )
             shell_pixels[R] = np.sum(mask)
 
         sigma_rs_2 = ctf_img_sq_sum / ctf_sq_sum
         sigma_rn_2 = diff_sq_sum / (shell_pixels * (len(projections) - 1))
 
-        ssnr_1d =  (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
+        ssnr_1d = (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
 
         return IterativeRefinement.expand_1d_to_Nd(ssnr_1d, d=2)
-
 
     @staticmethod
     def insert_slice(slice_real, xyz, n_pix):
@@ -701,7 +712,7 @@ class IterativeRefinement:
             shape (d,)
             the shape of the outputted 3D array.
         d : int
-            number of dimensions - 2 or 3. 
+            number of dimensions - 2 or 3.
         fill : bool
             Whether to output a shell or a solid sphere.
         shell_thickness : bool
@@ -740,7 +751,7 @@ class IterativeRefinement:
         arr_1d : arr
             Shape (n_pix // 2)
         d : int
-            number of dimensions - 2 or 3. 
+            number of dimensions - 2 or 3.
 
         Returns
         -------

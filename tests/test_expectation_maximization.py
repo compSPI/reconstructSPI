@@ -277,7 +277,7 @@ def test_binary_mask(test_ir):
     shape = (n_pix, n_pix, n_pix)
     for fill in [True, False]:
         mask = test_ir.binary_mask(
-            center, radius, shape, 3,  fill=fill, shell_thickness=1
+            center, radius, shape, 3, fill=fill, shell_thickness=1
         )
 
         for axis in [0, 1, 2]:
@@ -358,12 +358,8 @@ def test_expand_1d_to_Nd(test_ir, n_pix):
         assert np.allclose(zeros_1d, arr_2d[:, 0])
 
         arr_1d_rev = arr_1d[::-1]
-        assert np.allclose(
-            arr_1d_rev, arr_2d[1 : n_pix // 2 + 1, n_pix // 2]
-        )
-        assert np.allclose(
-            arr_1d_rev, arr_2d[n_pix // 2, 1 : n_pix // 2 + 1]
-        )
+        assert np.allclose(arr_1d_rev, arr_2d[1 : n_pix // 2 + 1, n_pix // 2])
+        assert np.allclose(arr_1d_rev, arr_2d[n_pix // 2, 1 : n_pix // 2 + 1])
 
 
 def test_iterative_refinement(test_ir, n_pix):
