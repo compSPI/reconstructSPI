@@ -51,6 +51,13 @@ class IterativeRefinement:
         self.particles = particles
         self.ctf_info = ctf_info
         self.max_itr = max_itr
+        self.insert_slice_vectorized = np.vectorize(
+            IterativeRefinement.insert_slice,
+            excluded=[
+                "xyz",
+            ],
+            signature="(n,n),(3,m),(3,k)->(n,n,n),(n,n,n)",
+        )
 
     def iterative_refinement(self, wiener_small_number=0.01, count_norm_const=1):
         """Perform iterative refinement.
@@ -133,14 +140,6 @@ class IterativeRefinement:
 
         xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
 
-        insert_slice_v = np.vectorize(
-            IterativeRefinement.insert_slice,
-            excluded=[
-                "xyz",
-            ],
-            signature="(n,n),(3,m),(3,k)->(n,n,n),(n,n,n)",
-        )
-
         for _ in range(self.max_itr):
 
             half_map_3d_f_1 = (
@@ -222,10 +221,10 @@ class IterativeRefinement:
 
                 for one_slice_idx in range(len(bayes_factors_1)):
                     xyz = xyz_rotated[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = insert_slice_v(
+                    inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
                         particle_f_deconv_1.real, xyz, xyz_voxels
                     )
-                    inserted_slice_3d_i, count_3d_i = insert_slice_v(
+                    inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
                         particle_f_deconv_1.imag, xyz, xyz_voxels
                     )
                     map_3d_f_updated_1 += np.sum(
@@ -235,10 +234,10 @@ class IterativeRefinement:
 
                 for one_slice_idx in range(len(bayes_factors_2)):
                     xyz = xyz_rotated[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = insert_slice_v(
+                    inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
                         particle_f_deconv_2.real, xyz, xyz_voxels
                     )
-                    inserted_slice_3d_i, count_3d_i = insert_slice_v(
+                    inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
                         particle_f_deconv_2.imag, xyz, xyz_voxels
                     )
                     map_3d_f_updated_2 += np.sum(
@@ -650,14 +649,37 @@ class IterativeRefinement:
         slice_values = np.tile(slice_real.reshape((n_pix**2,)), (3,))
 
         inserted_slice_3d = griddata(
-            xy_rotated.T, slice_values, xyz.T, fill_value=0
+            xy_rotated.T, slice_values, xyz.T, fill_value=0, method='linear'
         ).reshape((n_pix, n_pix, n_pix))
 
         count_3d = griddata(
-            xy_rotated.T, np.ones_like(slice_values), xyz.T, fill_value=0
+            xy_rotated.T, np.ones_like(slice_values), xyz.T, fill_value=0, method='linear'
         ).reshape((n_pix, n_pix, n_pix))
 
         return inserted_slice_3d, count_3d
+
+    def insert_slice_v(self, slices_real, xy_rots, xyz):
+        """Vectorized version of insert_slice.
+
+        Parameters
+        ----------
+        slices_real : float64 arr
+            Shape (n_slices, n_pix, n_pix) the slices of interest.
+        xy_rots : arr
+            Shape (n_slices, 3, 3*n_pix**2) nonzero-depth "planes" of rotated slice coords.
+        xyz : arr
+            Shape (3, n_pix**3) voxels of 3D map.
+
+        Returns
+        -------
+        inserted_slices_3d : float64 arr
+            Rotated slices in 3D voxel arrays.
+            Shape (n_slices, n_pix, n_pix, n_pix)
+        counts_3d : arr
+            Voxel array to count slice presence.
+            Shape (n_slices, n_pix, n_pix, n_pix)
+        """
+        return self.insert_slice_vectorized(slices_real, xy_rots, xyz)
 
     @staticmethod
     def compute_fsc(map_3d_f_1, map_3d_f_2):

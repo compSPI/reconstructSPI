@@ -300,6 +300,21 @@ def test_insert_slice(test_ir, n_pix):
     )
 
 
+def test_insert_slice_v(test_ir, n_pix):
+    """Test whether vectorized insert_slice produces the right shapes"""
+    n_slices = 5
+    xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
+    z_tol = np.array([[0, 0, 0.05],]).T
+    xy_plane_tol = np.concatenate((xy_plane + z_tol, xy_plane, xy_plane - z_tol), axis=0)
+    test_slices = np.ones((n_slices, n_pix, n_pix))
+    xy_planes_tol = np.tile(np.expand_dims(xy_plane_tol, axis=0), (n_slices,))
+    xyz = test_ir.generate_cartesian_grid(n_pix, 3)
+
+    inserts, counts = test_ir.insert_slice_v(xy_planes_tol, test_slices, xyz)
+    assert inserts.shape == (n_slices, n_pix, n_pix, n_pix)
+    assert counts.shape == (n_slices, n_pix, n_pix, n_pix)
+
+
 def test_compute_fsc(test_ir, n_pix):
     """Test computation of FSC."""
     map_1 = np.ones((n_pix, n_pix, n_pix))
