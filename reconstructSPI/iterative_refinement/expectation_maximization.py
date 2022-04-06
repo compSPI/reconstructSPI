@@ -128,7 +128,6 @@ class IterativeRefinement:
             .reshape(map_shape)
         )
 
-
         wiener_small_numbers = self.get_wiener_small_numbers(ctfs, 0.01, 0.1)
 
         for _ in range(self.max_itr):
@@ -593,7 +592,7 @@ class IterativeRefinement:
             Small number for approximating wiener filter effects
         fill_zeros : float
             Small number used in place of zeros that come from small number computations.
-        
+
         Returns
         -------
         wiener_small_numbers : arr
@@ -614,13 +613,13 @@ class IterativeRefinement:
         """Compute spectral signal to noise ratio (SSNR) for each pixel of projections.
 
         Uses section 2.6:
-        
+
         Sindelar, C. V., & Grigorieff, N. (2011). An adaptation of the Wiener filter suitable for analyzing images of isolated single particles. Journal of Structural Biology, 176(1), 60–74. http://doi.org/10.1016/j.jsb.2011.06.010
 
         Parameters
         ----------
         projections_f : arr
-            projections in fourier space. 
+            projections in fourier space.
             Shape (n_projections, n_pix, n_pix)
         ctfs : arr
             Shape (n_ctfs, n_pix, n_pix)
@@ -750,7 +749,7 @@ class IterativeRefinement:
             An array of bools with "True" where the sphere mask is
             present.
         """
-        if d not in (2,3):
+        if d not in (2, 3):
             raise ValueError(f"Dimension {d} was not 2 or 3")
         if d == 3:
             a, b, c = center

@@ -321,7 +321,7 @@ def test_binary_mask(test_ir):
     volume_ratio_analytic = (radius / r_half) ** 3
     assert np.isclose(volume_ratio, volume_ratio_analytic, atol=0.005)
 
-    # 2D tests 
+    # 2D tests
     center = (n_pix // 2, n_pix // 2)
     radius = n_pix // 2
     shape = (n_pix, n_pix)
@@ -329,7 +329,7 @@ def test_binary_mask(test_ir):
         mask = test_ir.binary_mask(
             center, radius, shape, 2, fill=fill, shell_thickness=1
         )
-        
+
         circle_to_square_ratio = mask.sum() > 0
         assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
 
@@ -344,12 +344,8 @@ def test_binary_mask(test_ir):
         perimeter_ratio = mask_r.sum() / mask_r_half.sum()
         assert np.isclose(2, perimeter_ratio, atol=0.1)
         if shell_thickness == 1:
-            assert np.isclose(
-                mask_r.sum() / (2 * np.pi * radius), 1, atol=0.1
-            )
-            assert np.isclose(
-                mask_r_half.sum() / (2 * np.pi * r_half), 1, atol=0.1
-            )
+            assert np.isclose(mask_r.sum() / (2 * np.pi * radius), 1, atol=0.1)
+            assert np.isclose(mask_r_half.sum() / (2 * np.pi * r_half), 1, atol=0.1)
 
     mask_r = test_ir.binary_mask(center, radius, shape, 3, fill=True, shell_thickness=1)
     mask_r_half = test_ir.binary_mask(
@@ -414,6 +410,7 @@ def test_expand_1d_to_nd(test_ir, n_pix):
         except ValueError:
             exceptionThrown = True
         assert exceptionThrown
+
 
 def test_iterative_refinement(test_ir, n_pix):
     """Test complete iterative refinement algorithm."""
