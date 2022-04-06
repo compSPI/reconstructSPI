@@ -670,7 +670,7 @@ class IterativeRefinement:
         """
         n_pix = slice_real.shape[0]
         slice_values = np.tile(slice_real.reshape((n_pix**2,)), (3,))
-            
+
         inserted_slice_3d = griddata(
             xy_rotated.T, slice_values, xyz.T, fill_value=0
         ).reshape((n_pix, n_pix, n_pix))
