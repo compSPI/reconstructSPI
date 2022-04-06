@@ -508,7 +508,11 @@ class IterativeRefinement:
         n_pix = len(map_3d_f)
         slices = np.empty((n_rotations, n_pix, n_pix), dtype=float)
         xyz_rotated = np.empty((n_rotations, 3, 3 * n_pix**2))
-        offset = np.array([[ 0, 0, z_offset ], ]).T
+        offset = np.array(
+            [
+                [0, 0, z_offset],
+            ]
+        ).T
         xy_plane = np.concatenate(
             (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
         )
