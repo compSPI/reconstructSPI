@@ -435,7 +435,7 @@ class IterativeRefinement:
 
             for di in range(3):
                 xyz[di] = grid[di].flatten()
-            xyz[[0, 1, 2]] = xyz[[2, 0, 1]]
+            xyz[[0, 1]] = xyz[[1, 0]]
 
             return xyz
         raise ValueError(f"Dimension {d} received was not 2 or 3.")
