@@ -351,7 +351,7 @@ def test_expand_1d_to_Nd(test_ir, n_pix):
 
         assert arr_2d.shape == (n_pix, n_pix)
         assert np.allclose(arr_1d, arr_2d[n_pix // 2 :, n_pix // 2])
-        assert np.allclose(arr_1d, arr_2d[n_pix // 2, n_pix // 2])
+        assert np.allclose(arr_1d, arr_2d[n_pix // 2, n_pix // 2 :])
 
         zeros_1d = np.zeros((n_pix))
         assert np.allclose(zeros_1d, arr_2d[0, :])

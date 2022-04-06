@@ -587,7 +587,7 @@ class IterativeRefinement:
         return projection_wfilter_f
 
     @staticmethod
-    def compute_ssnr(projections, ctfs, small_number=0.01):
+    def compute_ssnr(projections, ctfs_list, small_number=0.01):
         """Compute spectral signal to noise ratio (SSNR) for each pixel of projections.
 
         Uses section 2.6:
@@ -595,10 +595,10 @@ class IterativeRefinement:
 
         Parameters
         ----------
-        projection : arr
-            Shape (n_pix, n_pix)
-        ctf : arr
-            Shape (n_pix, n_pix)
+        projections : arr
+            Shape (n_projections, n_pix, n_pix)
+        ctfs_list : list
+            Shape (n_ctfs, n_pix, n_pix)
         small_number : float
             Used for tuning Wiener filter.
 
@@ -608,6 +608,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix) the SSNR of each pixel of a projection.
         """
         n_pix = len(projections[0])
+        ctfs = np.array(ctfs_list)
 
         signal_values = np.sum(ctfs * projections, axis=0) / np.sum(
             ctfs * ctfs + small_number, axis=0
@@ -622,21 +623,16 @@ class IterativeRefinement:
             mask = IterativeRefinement.binary_mask(
                 (n_pix // 2, n_pix // 2), R, projections[0].shape, 2
             )
-            ctf_sq_sum[R] = np.sum(mask * np.sum(ctfs * ctfs, axis=0))
+            ctf_sq_sum[R] = np.sum(mask * np.sum(ctfs**2, axis=0))
             ctf_img_sq_sum[R] = np.sum(
                 mask
                 * np.sum(
-                    ctfs * ctfs * np.abs(projections) * np.abs(projections), axis=0
+                    ctfs**2 * np.abs(projections)**2, axis=0
                 )
             )
-            diff_sq_sum[R] = np.sum(
-                mask
-                * np.sum(
-                    np.abs(projections - ctfs * signal_values)
-                    * np.sum(np.abs(projections - ctfs * signal_values)),
-                    axis=0,
-                )
-            )
+            diff_sq_sum[R] = np.sum(mask * np.sum(
+                np.abs(projections - ctfs * signal_values)**2, axis=0
+            ))
             shell_pixels[R] = np.sum(mask)
 
         sigma_rs_2 = ctf_img_sq_sum / ctf_sq_sum
