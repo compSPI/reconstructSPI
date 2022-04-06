@@ -614,10 +614,10 @@ class IterativeRefinement:
             ctfs * ctfs + small_number, axis=0
         )
 
-        ctf_sq_sum = np.zeros(len(projections) // 2)
-        ctf_img_sq_sum = np.zeros(len(projections) // 2)
-        diff_sq_sum = np.zeros(len(projections) // 2)
-        shell_pixels = np.zeros(len(projections) // 2)
+        ctf_sq_sum = np.zeros(n_pix // 2)
+        ctf_img_sq_sum = np.zeros(n_pix // 2)
+        diff_sq_sum = np.zeros(n_pix // 2)
+        shell_pixels = np.zeros(n_pix // 2)
 
         for R in range(n_pix // 2):
             mask = IterativeRefinement.binary_mask(
