@@ -301,7 +301,7 @@ def test_insert_slice(test_ir, n_pix):
 
 
 def test_insert_slice_v(test_ir, n_pix):
-    """Test whether vectorized insert_slice produces the right shapes"""
+    """Test whether vectorized insert_slice produces the right shapes."""
     n_slices = 5
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     z_tol = np.array(
