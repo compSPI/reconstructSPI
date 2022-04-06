@@ -619,7 +619,7 @@ class IterativeRefinement:
         diff_sq_sum = np.zeros(len(projections) // 2)
         shell_pixels = np.zeros(len(projections) // 2)
 
-        for R in range(len(projections) // 2):
+        for R in range(n_pix // 2):
             mask = IterativeRefinement.binary_mask(
                 (n_pix // 2, n_pix // 2), R, projections[0].shape, 2
             )
