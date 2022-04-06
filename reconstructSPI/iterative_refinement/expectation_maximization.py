@@ -649,11 +649,15 @@ class IterativeRefinement:
         slice_values = np.tile(slice_real.reshape((n_pix**2,)), (3,))
 
         inserted_slice_3d = griddata(
-            xy_rotated.T, slice_values, xyz.T, fill_value=0, method='linear'
+            xy_rotated.T, slice_values, xyz.T, fill_value=0, method="linear"
         ).reshape((n_pix, n_pix, n_pix))
 
         count_3d = griddata(
-            xy_rotated.T, np.ones_like(slice_values), xyz.T, fill_value=0, method='linear'
+            xy_rotated.T,
+            np.ones_like(slice_values),
+            xyz.T,
+            fill_value=0,
+            method="linear",
         ).reshape((n_pix, n_pix, n_pix))
 
         return inserted_slice_3d, count_3d
