@@ -664,13 +664,13 @@ class IterativeRefinement:
         """
         n_pix = slice_real.shape[0]
         slice_values = np.repeat(slice_real.reshape((n_pix**2,)), 3, axis=0)
-            
+
         inserted_slice_3d = griddata(
-            xy_rotated.T, slice_values, xyz.T, fill_value = 0
+            xy_rotated.T, slice_values, xyz.T, fill_value=0
         ).reshape((n_pix, n_pix, n_pix))
-        
+
         count_3d = griddata(
-            xy_rotated.T, np.ones_like(slice_values), xyz.T, fill_value = 0
+            xy_rotated.T, np.ones_like(slice_values), xyz.T, fill_value=0
         ).reshape((n_pix, n_pix, n_pix))
 
         return inserted_slice_3d, count_3d
