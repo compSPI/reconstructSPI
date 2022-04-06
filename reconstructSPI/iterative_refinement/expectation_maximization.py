@@ -393,6 +393,8 @@ class IterativeRefinement:
         """
         geom = special_orthogonal.SpecialOrthogonal(3, "matrix")
         rots = geom.random_uniform(n_rotations)
+        if n_rotations == 1:
+            rots = np.array((rots,))
         negatives = np.tile(np.random.randint(2, size=n_rotations) * 2 - 1, (3, 3, 1)).T
         rots[:] *= negatives
         return rots
