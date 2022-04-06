@@ -74,6 +74,9 @@ def test_grid_SO3_uniform(test_ir, n_particles):
     rots = test_ir.grid_SO3_uniform(n_particles)
     assert rots.shape == (n_particles, 3, 3)
 
+    rot = test_ir.grid_SO3_uniform(1)
+    assert rot.shape == (1, 3, 3)
+
 
 def test_generate_cartesian_grid(test_ir, n_pix):
     """Test generation of xy plane and xyz cube."""
@@ -105,6 +108,12 @@ def test_generate_cartesian_grid(test_ir, n_pix):
     assert np.isclose(xyz_cube.max(), n_pix_2 // 2 - 1)
     assert np.isclose(xyz_cube.min(), -n_pix_2 // 2)
 
+    exceptionThrown = False
+    try:
+        test_ir.generate_cartesian_grid(n_pix, 4)
+    except ValueError:
+        exceptionThrown = True
+    assert exceptionThrown
 
 def test_generate_slices(test_ir, n_particles, n_pix):
     """Test generation of slices.
