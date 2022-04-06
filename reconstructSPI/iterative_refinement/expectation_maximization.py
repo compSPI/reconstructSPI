@@ -725,7 +725,7 @@ class IterativeRefinement:
         else:
             a, b = center
             nx0, nx1 = shape
-            x0, x1 = np.ogrid[-a : nx0 - 1, -b : nx1 - b]
+            x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
             r2 = x0**2 + x1**2
         mask = r2 <= radius**2
         if not fill and radius - shell_thickness > 0:
