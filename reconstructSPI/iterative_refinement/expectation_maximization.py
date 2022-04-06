@@ -424,8 +424,8 @@ class IterativeRefinement:
 
             xy_plane = np.zeros((3, n_pix**2))
 
-            for d in range(2):
-                xy_plane[d, :] = grid[d].flatten()
+            for di in range(2):
+                xy_plane[di, :] = grid[di].flatten()
 
             return xy_plane
         if d == 3:
