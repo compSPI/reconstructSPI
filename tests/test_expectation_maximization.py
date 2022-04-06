@@ -115,6 +115,7 @@ def test_generate_cartesian_grid(test_ir, n_pix):
         exceptionThrown = True
     assert exceptionThrown
 
+
 def test_generate_slices(test_ir, n_particles, n_pix):
     """Test generation of slices.
 
