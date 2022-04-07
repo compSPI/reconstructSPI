@@ -2,6 +2,12 @@
 
 import numpy as np
 import pytest
+import torch
+from compSPI.transforms import (
+    fourier_to_primal_3D,
+    primal_to_fourier_2D,
+    primal_to_fourier_3D,
+)
 
 from reconstructSPI.iterative_refinement import expectation_maximization as em
 
@@ -410,6 +416,34 @@ def test_expand_1d_to_nd(test_ir, n_pix):
         except ValueError:
             exceptionThrown = True
         assert exceptionThrown
+
+
+def test_compute_ssnr(test_ir, n_pix, n_particles):
+    """Test the shape of compute_ssnr"""
+    particles_f = (
+        primal_to_fourier_2D(
+            torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
+        )
+        .numpy()
+        .reshape((n_particles, n_pix, n_pix))
+    )
+    ctfs = test_ir.build_ctf_array()
+    ssnrs = test_ir.compute_ssnr(particles_f, ctfs)
+    assert ssnrs.shape == (n_pix, n_pix)
+
+
+def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
+    """Test the shape of compute_wiener_small_numbers"""
+    particles_f = (
+        primal_to_fourier_2D(
+            torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
+        )
+        .numpy()
+        .reshape((n_particles, n_pix, n_pix))
+    )
+    ctfs = test_ir.build_ctf_array()
+    small_numbers = test_ir.get_wiener_small_numbers(particles_f, ctfs)
+    assert small_numbers.shape == (n_pix, n_pix)
 
 
 def test_iterative_refinement(test_ir, n_pix):

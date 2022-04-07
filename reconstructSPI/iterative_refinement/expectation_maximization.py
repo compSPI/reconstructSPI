@@ -128,7 +128,8 @@ class IterativeRefinement:
             .reshape(map_shape)
         )
 
-        wiener_small_numbers = self.get_wiener_small_numbers(ctfs, 0.01, 0.1)
+        wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(particles_f_1, ctfs_1)
+        wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(particles_f_2, ctfs_2)
 
         for _ in range(self.max_itr):
 
@@ -171,10 +172,10 @@ class IterativeRefinement:
                 ctf_2 = ctfs_2[particle_idx]
 
                 particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_1, ctf_1, wiener_small_numbers
+                    particles_f_1, ctf_1, wiener_small_numbers_1
                 )
                 particle_f_deconv_2 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_2, ctf_1, wiener_small_numbers
+                    particles_f_2, ctf_1, wiener_small_numbers_2
                 )
 
                 ctf_vectorized = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
@@ -559,12 +560,12 @@ class IterativeRefinement:
         return bayesian_weights, z_norm_const, em_loss
 
     @staticmethod
-    def apply_wiener_filter(projection, ctf, small_number=0.01):
+    def apply_wiener_filter(projection_f, ctf, small_number=0.01):
         """Apply Wiener filter to particle projection.
 
         Parameters
         ----------
-        projection : arr
+        projection_f : arr
             Shape (n_pix, n_pix)
         ctf : arr
             Shape (n_pix, n_pix)
@@ -577,16 +578,19 @@ class IterativeRefinement:
             Shape (n_pix, n_pix) the filtered projection.
         """
         wfilter = ctf / (ctf * ctf + small_number)
-        projection_wfilter_f = projection * wfilter
+        projection_wfilter_f = projection_f * wfilter
         return projection_wfilter_f
 
-    def get_wiener_small_numbers(self, ctfs, small_number=0.01, fill_zeros=0.01):
+    def get_wiener_small_numbers(particles_f, ctfs, small_number=0.01, fill_zeros=0.01):
         """Compute wiener small number array.
 
         Parameters
         ----------
+        particles_f : arr
+            Shape (n_particles, n_pix, n_pix)
+            Fourier space particle projections.
         ctfs : arr
-            Shape (n_ctfs, n_pix, n_pix)
+            Shape (n_particles, n_pix, n_pix)
             Ctfs of particles
         small_number : float
             Small number for approximating wiener filter effects
@@ -601,7 +605,7 @@ class IterativeRefinement:
             Small numbers to be used in wiener filtering each pixel of projections
         """
         wiener_small_numbers = IterativeRefinement.compute_ssnr(
-            self.particles, ctfs, small_number
+            particles_f, ctfs, small_number
         )
         wiener_small_numbers = np.where(
             np.isclose(wiener_small_numbers, 0), fill_zeros, wiener_small_numbers
