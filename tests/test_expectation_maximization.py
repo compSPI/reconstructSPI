@@ -415,7 +415,7 @@ def test_expand_1d_to_nd(test_ir, n_pix):
 
 
 def test_compute_ssnr(test_ir, n_pix, n_particles):
-    """Test the shape of compute_ssnr"""
+    """Test the shape of compute_ssnr."""
     particles_f = (
         primal_to_fourier_2D(
             torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
@@ -429,7 +429,7 @@ def test_compute_ssnr(test_ir, n_pix, n_particles):
 
 
 def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
-    """Test the shape of compute_wiener_small_numbers"""
+    """Test the shape of compute_wiener_small_numbers."""
     particles_f = (
         primal_to_fourier_2D(
             torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
