@@ -128,8 +128,12 @@ class IterativeRefinement:
             .reshape(map_shape)
         )
 
-        wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(particles_f_1, ctfs_1)
-        wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(particles_f_2, ctfs_2)
+        wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
+            particles_f_1, ctfs_1
+        )
+        wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(
+            particles_f_2, ctfs_2
+        )
 
         for _ in range(self.max_itr):
 
