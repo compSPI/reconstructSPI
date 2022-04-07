@@ -363,24 +363,6 @@ class IterativeRefinement:
                 super().__init__(*args, **kwargs)
                 self.__dict__ = self
 
-        # this is self.ctf_info, need to confirm changes
-        # cfg_dict = {  # these values will be in self.ctf_info
-        #     'amplitude_contrast': 0.1,
-        #     'b_factor': 0.0,
-        #     'batch_size': len(self.particles),
-        #     'cs': 2.7,
-        #     'ctf_size': 32,  # n_pix
-        #     'kv': 300,
-        #     'pixel_size': 3.2,
-        #     'side_len': 32,
-        #     'value_nyquist': 0.1,
-        #     'ctf_params' : {  # user would also pass this part in
-        #         'defocus_u' : [],
-        #         'defocus_v' : [],
-        #         'defocus_angle' : [],
-        #     }
-        # }
-
         ctf = CTF(AttrDict(self.ctf_info))
         tensor_shape = (len(self.particles), 1, 1, 1)
         tensor_dict = {}
