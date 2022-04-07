@@ -585,6 +585,7 @@ class IterativeRefinement:
         projection_wfilter_f = projection_f * wfilter
         return projection_wfilter_f
 
+    @staticmethod
     def get_wiener_small_numbers(particles_f, ctfs, small_number=0.01, fill_zeros=0.01):
         """Compute wiener small number array.
 
