@@ -325,13 +325,14 @@ def test_binary_mask(test_ir):
     center = (n_pix // 2, n_pix // 2)
     radius = n_pix // 2
     shape = (n_pix, n_pix)
-    for fill in [True, False]:
-        mask = test_ir.binary_mask(
-            center, radius, shape, 2, fill=fill, shell_thickness=1
-        )
+    
+    mask = test_ir.binary_mask(
+        center, radius, shape, 2, fill=True, shell_thickness=1
+    )
 
-        circle_to_square_ratio = mask.sum() > 0
-        assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
+    circle = mask > 0
+    circle_to_square_ratio = circle.mean()
+    assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
 
     r_half = radius / 2
     for shell_thickness in [1, 2]:
@@ -347,7 +348,7 @@ def test_binary_mask(test_ir):
             assert np.isclose(mask_r.sum() / (2 * np.pi * radius), 1, atol=0.1)
             assert np.isclose(mask_r_half.sum() / (2 * np.pi * r_half), 1, atol=0.1)
 
-    mask_r = test_ir.binary_mask(center, radius, shape, 3, fill=True, shell_thickness=1)
+    mask_r = test_ir.binary_mask(center, radius, shape, 2, fill=True, shell_thickness=1)
     mask_r_half = test_ir.binary_mask(
         center, r_half, shape, 2, fill=True, shell_thickness=1
     )
