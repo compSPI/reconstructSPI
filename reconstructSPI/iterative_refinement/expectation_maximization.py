@@ -9,8 +9,7 @@ from compSPI.transforms import (
 )
 from geomstats.geometry import special_orthogonal
 from scipy.ndimage import map_coordinates
-from simSPI import crd
-from simSPI import ctf as ctf_module
+from simSPI.linear_simulator import ctf as ctf_module
 
 
 class IterativeRefinement:
@@ -51,7 +50,6 @@ class IterativeRefinement:
         self.particles = particles
         self.ctf_info = ctf_info
         self.max_itr = max_itr
-        print(crd.get_rotlist(1))
 
     def iterative_refinement(self, wiener_small_number=0.01, count_norm_const=1):
         """Perform iterative refinement.
