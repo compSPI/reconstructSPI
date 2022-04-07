@@ -160,16 +160,14 @@ class IterativeRefinement:
 
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
             xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
-            xyz_rotated_padded = IterativeRefinement.pad_and_rotate_xy_planes(xy0_plane, rots)
+            xyz_rotated_padded = IterativeRefinement.pad_and_rotate_xy_planes(
+                xy0_plane, rots
+            )
             xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
 
-            slices_1 = IterativeRefinement.generate_slices(
-                half_map_3d_f_1, xyz_rotated
-            )
+            slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
 
-            slices_2 = IterativeRefinement.generate_slices(
-                half_map_3d_f_2, xyz_rotated
-            )
+            slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
 
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
             map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
@@ -512,7 +510,7 @@ class IterativeRefinement:
     @staticmethod
     def pad_and_rotate_xy_planes(xy_plane, rots, z_offset=0.05):
         """Rotate xy planes after padding them in z symmetrically by z_offset.
-        
+
         Parameters
         ----------
         xy_plane : arr
@@ -528,7 +526,7 @@ class IterativeRefinement:
         z_offset : float
             Symmetrical z-depth given to the xy_plane before rotating.
             0 < z_offset < 1
-        
+
         Returns
         -------
         xyz_rotated : arr
