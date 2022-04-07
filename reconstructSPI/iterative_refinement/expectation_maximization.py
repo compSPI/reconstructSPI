@@ -508,7 +508,7 @@ class IterativeRefinement:
         return slices
 
     @staticmethod
-    def pad_and_rotate_xy_planes(xy_plane, rots, z_offset=0.05):
+    def pad_and_rotate_xy_planes(xy_plane, rots, n_pix, z_offset=0.05):
         """Rotate xy planes after padding them in z symmetrically by z_offset.
 
         Parameters
@@ -523,6 +523,8 @@ class IterativeRefinement:
         rots : arr
             Array describing rotations.
             Shape (n_rotations, n_pix**2, 3)
+        n_pix : int
+            Number of pixels per axis.
         z_offset : float
             Symmetrical z-depth given to the xy_plane before rotating.
             0 < z_offset < 1
@@ -534,7 +536,6 @@ class IterativeRefinement:
             Shape (n_rotations, 3, 3 * n_pix**2)
         """
         n_rotations = len(rots)
-        n_pix = xy_plane.shape[0]
         offset = np.array(
             [
                 [0, 0, z_offset],

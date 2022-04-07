@@ -141,7 +141,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     map_3d = np.ones((n_pix, n_pix, n_pix))
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
-    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots)
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
     xyz_rotated = xyz_rotated_padded[:, :, n_pix**2, 2 * n_pix**2]
     slices = test_ir.generate_slices(map_3d, xyz_rotated)
 
@@ -169,7 +169,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     expected_slice_line_y = np.zeros_like(slices[0])
     expected_slice_line_y[n_pix // 2] = 1
 
-    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rot_90deg_about_y)
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
+        xy_plane,
+        rot_90deg_about_y,
+        n_pix
+    )
     xyz_rotated = xyz_rotated_padded[:, :, n_pix**2, 2 * n_pix**2]
 
     slices = test_ir.generate_slices(
@@ -190,7 +194,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     map_plane_ones_xyplane[:, :, n_pix // 2] = 1
     expected_slice = np.ones((n_pix, n_pix))
 
-    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rot_180deg_about_z)
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
+        xy_plane,
+        rot_180deg_about_z,
+        n_pix
+    )
     xyz_rotated = xyz_rotated_padded[:, :, n_pix**2, 2 * n_pix**2]
 
     slices = test_ir.generate_slices(
@@ -290,7 +298,11 @@ def test_insert_slice(test_ir, n_pix):
         ]
     )
 
-    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rot_90deg_about_y)
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
+        xy_plane,
+        rot_90deg_about_y,
+        n_pix
+    )
 
     slices = test_ir.generate_slices(
         map_plane_ones, xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
