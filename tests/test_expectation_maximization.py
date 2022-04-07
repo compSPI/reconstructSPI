@@ -3,11 +3,7 @@
 import numpy as np
 import pytest
 import torch
-from compSPI.transforms import (
-    fourier_to_primal_3D,
-    primal_to_fourier_2D,
-    primal_to_fourier_3D,
-)
+from compSPI.transforms import primal_to_fourier_2D
 
 from reconstructSPI.iterative_refinement import expectation_maximization as em
 
