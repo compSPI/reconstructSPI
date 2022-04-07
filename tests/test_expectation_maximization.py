@@ -172,9 +172,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     expected_slice_line_y[n_pix // 2] = 1
 
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
-        xy_plane,
-        rot_90deg_about_y,
-        n_pix
+        xy_plane, rot_90deg_about_y, n_pix
     )
     xyz_rotated = xyz_rotated_padded[:, :, n_pix**2, 2 * n_pix**2]
 
@@ -195,9 +193,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     expected_slice = np.ones((n_pix, n_pix))
 
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
-        xy_plane,
-        rot_180deg_about_z,
-        n_pix
+        xy_plane, rot_180deg_about_z, n_pix
     )
     xyz_rotated = xyz_rotated_padded[:, :, n_pix**2, 2 * n_pix**2]
 
@@ -297,9 +293,7 @@ def test_insert_slice(test_ir, n_pix):
     )
 
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
-        xy_plane,
-        rot_90deg_about_y,
-        n_pix
+        xy_plane, rot_90deg_about_y, n_pix
     )
 
     slices = test_ir.generate_slices(
