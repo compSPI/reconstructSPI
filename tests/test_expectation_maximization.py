@@ -280,13 +280,15 @@ def test_insert_slice(test_ir, n_pix):
         ]
     )
 
-    slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones, xy_plane, rot_90deg_about_y
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rot_90deg_about_y)
+
+    slices = test_ir.generate_slices(
+        map_plane_ones, xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
     )
 
     xyz_voxels = test_ir.generate_cartesian_grid(n_pix, 3)
 
-    inserted, count = test_ir.insert_slice(slices[0], xyz_rotated_planes[0], xyz_voxels)
+    inserted, count = test_ir.insert_slice(slices[0], xyz_rotated_padded[0], xyz_voxels)
 
     omit_idx_artefact = 1
 
