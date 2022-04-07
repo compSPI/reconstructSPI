@@ -9,7 +9,7 @@ from compSPI.transforms import (
 )
 from geomstats.geometry import special_orthogonal
 from scipy.ndimage import map_coordinates
-from simSPI.linear_simulator import ctf as ctf_module
+from simSPI import ctf as ctf_module
 
 
 class IterativeRefinement:
