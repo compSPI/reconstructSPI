@@ -325,10 +325,8 @@ def test_binary_mask(test_ir):
     center = (n_pix // 2, n_pix // 2)
     radius = n_pix // 2
     shape = (n_pix, n_pix)
-    
-    mask = test_ir.binary_mask(
-        center, radius, shape, 2, fill=True, shell_thickness=1
-    )
+
+    mask = test_ir.binary_mask(center, radius, shape, 2, fill=True, shell_thickness=1)
 
     circle = mask > 0
     circle_to_square_ratio = circle.mean()
