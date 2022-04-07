@@ -118,6 +118,15 @@ def test_generate_cartesian_grid(test_ir, n_pix):
     assert exceptionThrown
 
 
+def test_pad_and_rotate_xy_plane(test_ir, n_pix, n_particles):
+    """Test shape after padding and rotating xy plane."""
+    n_rotations = n_particles
+    xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
+    rots = test_ir.grid_SO3_uniform(n_rotations)
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_plane(xy_plane, rots)
+    assert xyz_rotated_padded.shape == (n_rotations, 3, 3 * n_pix**2)
+
+
 def test_generate_slices(test_ir, n_particles, n_pix):
     """Test generation of slices.
 
