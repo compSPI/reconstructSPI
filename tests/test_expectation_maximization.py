@@ -2,6 +2,8 @@
 
 import numpy as np
 import pytest
+import torch
+from compSPI.transforms import primal_to_fourier_2D
 
 from reconstructSPI.iterative_refinement import expectation_maximization as em
 
@@ -275,8 +277,8 @@ def test_compute_fsc(test_ir, n_pix):
     assert fsc_1.shape == (n_pix // 2,)
 
 
-def test_binary_mask_3d(test_ir):
-    """Test binary_mask_3d.
+def test_binary_mask(test_ir):
+    """Test binary_mask in 3d and 2d.
 
     Tests the limit of infinite n_pix. Use high n_pix so good approx.
     1. Sums shell through an axis, then converts to circle,
@@ -288,14 +290,15 @@ def test_binary_mask_3d(test_ir):
 
     3. Make filled sphere of sizes r and r/2 and check ratio of volume.
     """
+    # 3D tests
     n_pix = 512
 
     center = (n_pix // 2, n_pix // 2, n_pix // 2)
     radius = n_pix // 2
     shape = (n_pix, n_pix, n_pix)
     for fill in [True, False]:
-        mask = test_ir.binary_mask_3d(
-            center, radius, shape, fill=fill, shell_thickness=1
+        mask = test_ir.binary_mask(
+            center, radius, shape, 3, fill=fill, shell_thickness=1
         )
 
         for axis in [0, 1, 2]:
@@ -303,18 +306,18 @@ def test_binary_mask_3d(test_ir):
             circle_to_square_ratio = circle.mean()
             assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
 
-    mask = test_ir.binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1)
+    mask = test_ir.binary_mask(center, radius, shape, 3, fill=True, shell_thickness=1)
     circle = mask[n_pix // 2]
     circle_to_square_ratio = circle.mean()
     assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
 
     r_half = radius / 2
     for shell_thickness in [1, 2]:
-        mask_r = test_ir.binary_mask_3d(
-            center, radius, shape, fill=False, shell_thickness=1
+        mask_r = test_ir.binary_mask(
+            center, radius, shape, 3, fill=False, shell_thickness=1
         )
-        mask_r_half = test_ir.binary_mask_3d(
-            center, r_half, shape, fill=False, shell_thickness=1
+        mask_r_half = test_ir.binary_mask(
+            center, r_half, shape, 3, fill=False, shell_thickness=1
         )
         perimeter_ratio = mask_r[n_pix // 2].sum() / mask_r_half[n_pix // 2].sum()
         assert np.isclose(2, perimeter_ratio, atol=0.1)
@@ -330,19 +333,60 @@ def test_binary_mask_3d(test_ir):
         surface_area_ratio_analytic = (radius / r_half) ** 2
         assert np.isclose(surface_area_ratio, surface_area_ratio_analytic, atol=0.1)
 
-    mask_r = test_ir.binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1)
-    mask_r_half = test_ir.binary_mask_3d(
-        center, r_half, shape, fill=True, shell_thickness=1
+    mask_r = test_ir.binary_mask(center, radius, shape, 3, fill=True, shell_thickness=1)
+    mask_r_half = test_ir.binary_mask(
+        center, r_half, shape, 3, fill=True, shell_thickness=1
     )
     volume_ratio = mask_r.sum() / mask_r_half.sum()
     volume_ratio_analytic = (radius / r_half) ** 3
     assert np.isclose(volume_ratio, volume_ratio_analytic, atol=0.005)
 
+    # 2D tests
+    center = (n_pix // 2, n_pix // 2)
+    radius = n_pix // 2
+    shape = (n_pix, n_pix)
 
-def test_expand_1d_to_3d(test_ir, n_pix):
-    """Test expansion of 1D array into spherical shell."""
+    mask = test_ir.binary_mask(center, radius, shape, 2, fill=True, shell_thickness=1)
+
+    circle = mask > 0
+    circle_to_square_ratio = circle.mean()
+    assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
+
+    r_half = radius / 2
+    for shell_thickness in [1, 2]:
+        mask_r = test_ir.binary_mask(
+            center, radius, shape, 2, fill=False, shell_thickness=1
+        )
+        mask_r_half = test_ir.binary_mask(
+            center, r_half, shape, 2, fill=False, shell_thickness=1
+        )
+        perimeter_ratio = mask_r.sum() / mask_r_half.sum()
+        assert np.isclose(2, perimeter_ratio, atol=0.1)
+        if shell_thickness == 1:
+            assert np.isclose(mask_r.sum() / (2 * np.pi * radius), 1, atol=0.1)
+            assert np.isclose(mask_r_half.sum() / (2 * np.pi * r_half), 1, atol=0.1)
+
+    mask_r = test_ir.binary_mask(center, radius, shape, 2, fill=True, shell_thickness=1)
+    mask_r_half = test_ir.binary_mask(
+        center, r_half, shape, 2, fill=True, shell_thickness=1
+    )
+    area_ratio = mask_r.sum() / mask_r_half.sum()
+    area_ratio_analytic = (radius / r_half) ** 2
+    assert np.isclose(area_ratio, area_ratio_analytic, atol=0.005)
+
+    # ND test
+    exceptionThrown = False
+    try:
+        test_ir.binary_mask(center, radius, shape, 4)
+    except ValueError:
+        exceptionThrown = True
+    assert exceptionThrown
+
+
+def test_expand_1d_to_nd(test_ir, n_pix):
+    """Test expansion of 1D array into spherical or circular shell."""
     for arr_1d in [np.ones(n_pix // 2), np.arange(n_pix // 2)]:
-        arr_3d = test_ir.expand_1d_to_3d(arr_1d)
+        arr_3d = test_ir.expand_1d_to_nd(arr_1d, d=3)
 
         assert arr_3d.shape == (n_pix, n_pix, n_pix)
         assert np.allclose(arr_1d, arr_3d[n_pix // 2 :, n_pix // 2, n_pix // 2])
@@ -364,6 +408,56 @@ def test_expand_1d_to_3d(test_ir, n_pix):
         assert np.allclose(
             arr_1d_rev, arr_3d[n_pix // 2, n_pix // 2, 1 : n_pix // 2 + 1]
         )
+
+        arr_2d = test_ir.expand_1d_to_nd(arr_1d, d=2)
+
+        assert arr_2d.shape == (n_pix, n_pix)
+        assert np.allclose(arr_1d, arr_2d[n_pix // 2 :, n_pix // 2])
+        assert np.allclose(arr_1d, arr_2d[n_pix // 2, n_pix // 2 :])
+
+        zeros_1d = np.zeros((n_pix))
+        assert np.allclose(zeros_1d, arr_2d[0, :])
+        assert np.allclose(zeros_1d, arr_2d[:, 0])
+
+        arr_1d_rev = arr_1d[::-1]
+        assert np.allclose(arr_1d_rev, arr_2d[1 : n_pix // 2 + 1, n_pix // 2])
+        assert np.allclose(arr_1d_rev, arr_2d[n_pix // 2, 1 : n_pix // 2 + 1])
+
+        exceptionThrown = False
+        try:
+            arr_1d = np.arange(n_pix // 2)
+            test_ir.expand_1d_to_nd(arr_1d, d=4)
+        except ValueError:
+            exceptionThrown = True
+        assert exceptionThrown
+
+
+def test_compute_ssnr(test_ir, n_pix, n_particles):
+    """Test the shape of compute_ssnr."""
+    particles_f = (
+        primal_to_fourier_2D(
+            torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
+        )
+        .numpy()
+        .reshape((n_particles, n_pix, n_pix))
+    )
+    ctfs = test_ir.build_ctf_array()
+    ssnrs = test_ir.compute_ssnr(particles_f, ctfs)
+    assert ssnrs.shape == (n_pix, n_pix)
+
+
+def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
+    """Test the shape of compute_wiener_small_numbers."""
+    particles_f = (
+        primal_to_fourier_2D(
+            torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
+        )
+        .numpy()
+        .reshape((n_particles, n_pix, n_pix))
+    )
+    ctfs = test_ir.build_ctf_array()
+    small_numbers = test_ir.get_wiener_small_numbers(particles_f, ctfs)
+    assert small_numbers.shape == (n_pix, n_pix)
 
 
 def test_iterative_refinement(test_ir, n_pix):

@@ -76,7 +76,7 @@ class IterativeRefinement:
         self.ctf_info = ctf_info
         self.max_itr = max_itr
 
-    def iterative_refinement(self, wiener_small_number=0.01, count_norm_const=1):
+    def iterative_refinement(self, count_norm_const=1):
         """Perform iterative refinement.
 
         Acts in a Bayesian expectation maximization setting,
@@ -84,8 +84,6 @@ class IterativeRefinement:
 
         Parameters
         ----------
-        wiener_small_number : float
-            Used to tune Wiener filter.
         count_norm_const : float
             Used to tune normalization of slice inserting.
 
@@ -155,6 +153,13 @@ class IterativeRefinement:
             .reshape(map_shape)
         )
 
+        wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
+            particles_f_1, ctfs_1
+        )
+        wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(
+            particles_f_2, ctfs_2
+        )
+
         for _ in range(self.max_itr):
 
             half_map_3d_f_1 = (
@@ -196,10 +201,10 @@ class IterativeRefinement:
                 ctf_2 = ctfs_2[particle_idx]
 
                 particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_1, ctf_1, wiener_small_number
+                    particles_f_1, ctf_1, wiener_small_numbers_1
                 )
                 particle_f_deconv_2 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_2, ctf_1, wiener_small_number
+                    particles_f_2, ctf_1, wiener_small_numbers_2
                 )
 
                 ctf_vectorized = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
@@ -268,7 +273,7 @@ class IterativeRefinement:
             )
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
+        fsc_3d = IterativeRefinement.expand_1d_to_nd(fsc_1d)
 
         map_3d_f_final = ((half_map_3d_f_1 + half_map_3d_f_2) / 2) * fsc_3d
         map_3d_f_final = torch.from_numpy(map_3d_f_final.reshape(map_shape))
@@ -333,7 +338,7 @@ class IterativeRefinement:
         """
         fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
 
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
+        fsc_3d = IterativeRefinement.expand_1d_to_nd(fsc_1d)
 
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
@@ -400,7 +405,6 @@ class IterativeRefinement:
             self.particles.shape[1],
             self.particles.shape[2],
         )
-
         return ctf.get_ctf(tensor_dict).numpy().reshape(ctf_shape)
 
     @staticmethod
@@ -605,16 +609,16 @@ class IterativeRefinement:
         return bayesian_weights, z_norm_const, em_loss
 
     @staticmethod
-    def apply_wiener_filter(projection, ctf, small_number):
+    def apply_wiener_filter(projection_f, ctf, small_number=0.01):
         """Apply Wiener filter to particle projection.
 
         Parameters
         ----------
-        projection : arr
+        projection_f : arr
             Shape (n_pix, n_pix)
         ctf : arr
             Shape (n_pix, n_pix)
-        small_number : float
+        small_number : float or arr (n_pix, n_pix)
             Used for tuning Wiener filter.
 
         Returns
@@ -623,8 +627,98 @@ class IterativeRefinement:
             Shape (n_pix, n_pix) the filtered projection.
         """
         wfilter = ctf / (ctf * ctf + small_number)
-        projection_wfilter_f = projection * wfilter
+        projection_wfilter_f = projection_f * wfilter
         return projection_wfilter_f
+
+    @staticmethod
+    def get_wiener_small_numbers(particles_f, ctfs, small_number=0.01, fill_zeros=0.01):
+        """Compute wiener small number array.
+
+        Parameters
+        ----------
+        particles_f : arr
+            Shape (n_particles, n_pix, n_pix)
+            Fourier space particle projections.
+        ctfs : arr
+            Shape (n_particles, n_pix, n_pix)
+            Ctfs of particles
+        small_number : float
+            Small number for approximating wiener filter effects
+        fill_zeros : float
+            Small number used in place of zeros that come from small number
+            computations.
+
+        Returns
+        -------
+        wiener_small_numbers : arr
+            Shape (n_pix, n_pix)
+            Small numbers to be used in wiener filtering each pixel of projections
+        """
+        wiener_small_numbers = IterativeRefinement.compute_ssnr(
+            particles_f, ctfs, small_number
+        )
+        wiener_small_numbers = np.where(
+            np.isclose(wiener_small_numbers, 0), fill_zeros, wiener_small_numbers
+        )
+        wiener_small_numbers = 1 / wiener_small_numbers
+        return wiener_small_numbers
+
+    @staticmethod
+    def compute_ssnr(projections_f, ctfs, small_number=0.01):
+        """Compute spectral signal to noise ratio (SSNR) for each pixel of projections.
+
+        Uses section 2.6:
+
+        Sindelar, C. V., & Grigorieff, N. (2011). An adaptation of the Wiener
+        filter suitable for analyzing images of isolated single particles.
+        Journal of Structural Biology, 176(1), 60–74.
+        http://doi.org/10.1016/j.jsb.2011.06.010
+
+        Parameters
+        ----------
+        projections_f : arr
+            projections in fourier space.
+            Shape (n_projections, n_pix, n_pix)
+        ctfs : arr
+            Shape (n_ctfs, n_pix, n_pix)
+        small_number : float
+            Used for "worse" wiener filter approximation during computations.
+
+        Returns
+        -------
+        ssnr : arr
+            Shape (n_pix, n_pix) the SSNR of each pixel of a projection.
+        """
+        n_pix = len(projections_f[0])
+
+        signal_values = np.sum(ctfs * projections_f, axis=0) / np.sum(
+            ctfs * ctfs + small_number, axis=0
+        )
+
+        ctf_sq_sum = np.zeros(n_pix // 2)
+        ctf_img_sq_sum = np.zeros(n_pix // 2)
+        diff_sq_sum = np.zeros(n_pix // 2)
+        shell_pixels = np.zeros(n_pix // 2)
+
+        for radius in range(n_pix // 2):
+            mask = IterativeRefinement.binary_mask(
+                (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
+            )
+            ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
+            ctf_img_sq_sum[radius] = np.sum(
+                mask * np.sum(ctfs**2 * np.abs(projections_f) ** 2, axis=0)
+            )
+            diff_sq_sum[radius] = np.sum(
+                mask * np.sum(np.abs(projections_f - ctfs * signal_values) ** 2, axis=0)
+            )
+            shell_pixels[radius] = np.sum(mask)
+
+        sigma_rs_2 = ctf_img_sq_sum / ctf_sq_sum
+        sigma_rn_2 = diff_sq_sum / (shell_pixels * (len(projections_f) - 1))
+
+        ssnr_1d = (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
+
+        return IterativeRefinement.expand_1d_to_nd(ssnr_1d, d=2)
 
     @staticmethod
     def insert_slice(slice_real, xyz, n_pix):
@@ -686,19 +780,21 @@ class IterativeRefinement:
         return noise_estimates
 
     @staticmethod
-    def binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1):
+    def binary_mask(center, radius, shape, d=3, fill=True, shell_thickness=1):
         """Construct a binary spherical shell mask (variable thickness).
 
         Parameters
         ----------
         center : array-like
-            shape (3,)
+            shape (d,)
             the co-ordinates of the center of the shell.
         radius : float
             the radius in pixels of the shell.
         shape : array-like
-            shape (3,)
-            the shape of the outputted 3D array.
+            shape (d,)
+            the shape of the outputted array.
+        d : int
+            number of dimensions - 2 or 3.
         fill : bool
             Whether to output a shell or a solid sphere.
         shell_thickness : bool
@@ -711,30 +807,43 @@ class IterativeRefinement:
             An array of bools with "True" where the sphere mask is
             present.
         """
-        a, b, c = center
-        nx0, nx1, nx2 = shape
-        x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-        r2 = x0**2 + x1**2 + x2**2
+        if d not in (2, 3):
+            raise ValueError(f"Dimension {d} was not 2 or 3")
+        if d == 3:
+            a, b, c = center
+            nx0, nx1, nx2 = shape
+            x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
+            r2 = x0**2 + x1**2 + x2**2
+
+        elif d == 2:
+            a, b = center
+            nx0, nx1 = shape
+            x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
+            r2 = x0**2 + x1**2
+
         mask = r2 <= radius**2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
             mask = np.logical_xor(mask_outer, mask_inner)
+
         return mask
 
     @staticmethod
-    def expand_1d_to_3d(arr_1d):
-        """Expand 1D array data into spherical shell.
+    def expand_1d_to_nd(arr_1d, d=3):
+        """Expand 1D array data into circular or spherical shell.
 
         Parameters
         ----------
         arr_1d : arr
             Shape (n_pix // 2)
+        d : int
+            number of dimensions - 2 or 3.
 
         Returns
         -------
-        arr_3d : arr
-            Shape (n_pix, n_pix, n_pix)
+        arr_3d or arr_2d : arr
+            Shape (n_pix, n_pix, n_pix) or (n_pix, n_pix)
 
         Note
         ----
@@ -744,12 +853,24 @@ class IterativeRefinement:
         which only goes up to +n_pix/2 -1.
         """
         n_pix = 2 * len(arr_1d)
-        arr_3d = np.zeros((n_pix, n_pix, n_pix))
-        center = (n_pix // 2, n_pix // 2, n_pix // 2)
-        for i in reversed(range(n_pix // 2)):
-            mask = IterativeRefinement.binary_mask_3d(
-                center, i, arr_3d.shape, fill=False
-            )
-            arr_3d = np.where(mask, arr_1d[i], arr_3d)
+        if d == 3:
+            arr_3d = np.zeros((n_pix, n_pix, n_pix))
+            center = (n_pix // 2, n_pix // 2, n_pix // 2)
+            for i in reversed(range(n_pix // 2)):
+                mask = IterativeRefinement.binary_mask(
+                    center, i, arr_3d.shape, 3, fill=False
+                )
+                arr_3d = np.where(mask, arr_1d[i], arr_3d)
 
-        return arr_3d
+            return arr_3d
+        if d == 2:
+            arr_2d = np.zeros((n_pix, n_pix))
+            center = (n_pix // 2, n_pix // 2)
+            for i in reversed(range(n_pix // 2)):
+                mask = IterativeRefinement.binary_mask(
+                    center, i, arr_2d.shape, 2, fill=False
+                )
+                arr_2d = np.where(mask, arr_1d[i], arr_2d)
+
+            return arr_2d
+        raise ValueError(f"Dimension {d} was not 2 or 3")
