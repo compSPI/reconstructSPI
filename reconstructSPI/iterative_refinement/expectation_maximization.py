@@ -137,7 +137,7 @@ class IterativeRefinement:
         )
 
         xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
-        
+
         wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
             particles_f_1, ctfs_1
         )
