@@ -174,7 +174,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
         xy_plane, rot_90deg_about_y, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2, 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
 
     slices = test_ir.generate_slices(map_plane_ones_xzplane, xyz_rotated)
     omit_idx_artefact = 1
@@ -195,7 +195,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
         xy_plane, rot_180deg_about_z, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2, 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
 
     slices = test_ir.generate_slices(map_plane_ones_xyplane, xyz_rotated)
     assert np.allclose(
