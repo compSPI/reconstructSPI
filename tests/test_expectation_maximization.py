@@ -21,24 +21,42 @@ def n_particles():
 
 
 @pytest.fixture
+def rand_angle_list(n_particles):
+    """Get random astigmatism angle between 0 and 2pi."""
+    return np.random.uniform(low=0, high=2 * np.pi, size=(n_particles,))
+
+
+@pytest.fixture
+def rand_defocus(n_particles):
+    """Get random defocus values between 0.5 and 2.5."""
+    return np.random.uniform(low=0.5, high=2.5, size=(n_particles,))
+
+
+@pytest.fixture
 def test_ir(n_pix, n_particles):
     """Instantiate IterativeRefinement class for testing."""
-    ex_ctf = {
-        "s": np.ones((n_pix, n_pix)),
-        "a": np.ones((n_pix, n_pix)),
-        "def1": 1.0,
-        "def2": 1.0,
-        "angast": 0.1,
-        "kv": 0.1,
-        "cs": 0.1,
-        "bf": 0.1,
-        "lp": 0.1,
+    defocus_list = rand_defocus(n_particles)
+    angle_list = rand_angle_list(n_particles)
+    pixels = n_pix()
+    ctf_info = {
+        "amplitude_contrast": 0.1,
+        "b_factor": 0.0,
+        "batch_size": n_particles,
+        "cs": 2.7,
+        "ctf_size": pixels,
+        "kv": 0.1968,
+        "pixel_size": 128,
+        "side_len": pixels,
+        "value_nyquist": 0.1,
+        "ctf_params": {
+            "defocus_u": defocus_list,
+            "defocus_v": defocus_list,
+            "defocus_angle": angle_list,
+        },
     }
     map_3d = np.zeros((n_pix, n_pix, n_pix))
     particles = np.zeros((n_particles, n_pix, n_pix))
-    ctf_info = [
-        ex_ctf,
-    ] * n_particles
+
     itr = 2
     ir = em.IterativeRefinement(map_3d, particles, ctf_info, itr)
     return ir
@@ -78,7 +96,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_xy_plane(test_ir, n_pix):
     """Test generation of xy plane."""
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    assert xy_plane.shape == (3, n_pix**2)
+    assert xy_plane.shape == (3, n_pix ** 2)
 
     n_pix_2 = 2
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
@@ -116,7 +134,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xy_plane = test_ir.generate_xy_plane(n_pix)
     slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, rots)
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
+    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix ** 2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
