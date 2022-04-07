@@ -11,6 +11,8 @@ from geomstats.geometry import special_orthogonal
 from scipy.ndimage import map_coordinates
 from simSPI.transfer import eval_ctf
 
+import logging
+
 
 class IterativeRefinement:
     """Iterative refinement with max likelihood estimation.
@@ -171,6 +173,9 @@ class IterativeRefinement:
             counts_3d_updated_1 = np.zeros_like(half_map_3d_r_1)
             counts_3d_updated_2 = np.zeros_like(half_map_3d_r_2)
 
+            log_post_1 = 0
+            log_post_2 = 0
+
             for particle_idx in range(particles_f_1.shape[0]):
                 ctf_1 = ctfs_1[particle_idx]
                 ctf_2 = ctfs_2[particle_idx]
@@ -189,30 +194,23 @@ class IterativeRefinement:
 
                 sigma = 1
 
-                (
-                    bayes_factors_1,
-                    z_norm_const_1,
-                    em_loss_1,
-                ) = IterativeRefinement.compute_bayesian_weights(
+                bayes_factors_1, z_norm_const_1, em_loss_1 = IterativeRefinement.compute_bayesian_weights(
                     particles_f_1[particle_idx], slices_conv_ctfs_1, sigma
                 )
-                print(
-                    "log z_norm_const_1={}, em_loss_1={}".format(
+                print("log z_norm_const_1={}, em_loss_1={}".format(
                         z_norm_const_1, em_loss_1
                     )
                 )
-                (
-                    bayes_factors_2,
-                    z_norm_const_2,
-                    em_loss_2,
-                ) = IterativeRefinement.compute_bayesian_weights(
+                bayes_factors_2, z_norm_const_2, em_loss_2 = IterativeRefinement.compute_bayesian_weights(
                     particles_f_2[particle_idx], slices_conv_ctfs_2, sigma
                 )
-                print(
-                    "log z_norm_const_2={}, em_loss_2={}".format(
+                print("log z_norm_const_2={}, em_loss_2={}".format(
                         z_norm_const_2, em_loss_2
                     )
                 )
+
+                log_post_1 += em_loss_1
+                log_post_2 += em_loss_2
 
                 for one_slice_idx in range(len(bayes_factors_1)):
                     xyz = xyz_rotated[one_slice_idx]
@@ -242,6 +240,9 @@ class IterativeRefinement:
                 map_3d_f_norm_2 = IterativeRefinement.normalize_map(
                     map_3d_f_updated_2, counts_3d_updated_2, count_norm_const
                 )
+
+            logging.info(f'EM Loss #1: {log_post_1}')
+            logging.info(f'EM Loss #2: {log_post_2}')
 
             half_map_3d_f_1, half_map_3d_f_2 = IterativeRefinement.apply_noise_model(
                 map_3d_f_norm_1, map_3d_f_norm_2
@@ -536,6 +537,8 @@ class IterativeRefinement:
             Shape (n_slices,)
         z_norm_const : float64
           Normalizaing constant.
+        em_loss : float64
+          log posterior probability of single experimental image
 
         Notes
         -----
