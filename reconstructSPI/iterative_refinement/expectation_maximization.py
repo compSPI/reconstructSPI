@@ -1,17 +1,14 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
+import logging
+
 import numpy as np
 import torch
-from compSPI.transforms import (
-    fourier_to_primal_3D,
-    primal_to_fourier_2D,
-    primal_to_fourier_3D,
-)
+from compSPI.transforms import (fourier_to_primal_3D, primal_to_fourier_2D,
+                                primal_to_fourier_3D)
 from geomstats.geometry import special_orthogonal
 from scipy.ndimage import map_coordinates
 from simSPI.transfer import eval_ctf
-
-import logging
 
 
 class IterativeRefinement:
