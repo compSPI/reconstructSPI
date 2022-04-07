@@ -310,13 +310,13 @@ def test_insert_slice_v(test_ir, n_pix):
         ]
     ).T
     xy_plane_tol = np.concatenate(
-        (xy_plane + z_tol, xy_plane, xy_plane - z_tol), axis=0
+        (xy_plane + z_tol, xy_plane, xy_plane - z_tol), axis=1
     )
     test_slices = np.ones((n_slices, n_pix, n_pix))
-    xy_planes_tol = np.tile(np.expand_dims(xy_plane_tol, axis=0), (n_slices,))
+    xy_planes_tol = np.tile(np.expand_dims(xy_plane_tol, axis=0), (n_slices, 1, 1))
     xyz = test_ir.generate_cartesian_grid(n_pix, 3)
 
-    inserts, counts = test_ir.insert_slice_v(xy_planes_tol, test_slices, xyz)
+    inserts, counts = test_ir.insert_slice_v(test_slices, xy_planes_tol, xyz)
     assert inserts.shape == (n_slices, n_pix, n_pix, n_pix)
     assert counts.shape == (n_slices, n_pix, n_pix, n_pix)
 
