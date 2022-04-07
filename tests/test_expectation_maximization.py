@@ -144,7 +144,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2, 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
     slices = test_ir.generate_slices(map_3d, xyz_rotated)
 
     assert slices.shape == (n_particles, n_pix, n_pix)

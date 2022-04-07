@@ -166,7 +166,7 @@ class IterativeRefinement:
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
             xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
             xyz_rotated_padded = IterativeRefinement.pad_and_rotate_xy_planes(
-                xy0_plane, rots
+                xy0_plane, rots, n_pix
             )
             xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
 
