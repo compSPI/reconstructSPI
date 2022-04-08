@@ -632,11 +632,11 @@ class IterativeRefinement:
         https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/fsc.ipynb
         """
         n_pix = map_3d_f_2.shape[0]
-        fsc = np.empty(len(n_pix // 2), dtype = np.complex64)
+        fsc = np.empty(n_pix // 2, dtype = np.complex64)
 
-        for rad,index in range(1, n_pix // 2 + 1):
+        for rad in range(1, n_pix // 2 + 1):
             shell_mask = self.binary_mask_3d(center = (n_pix // 2, n_pix // 2, n_pix // 2), radius = rad,
-                                             shape = np.ones_like(map_3d_f_1.shape),
+                                             shape = map_3d_f_1.shape,
                                              fill = False).astype(np.bool)
 
             shell_a = map_3d_f_1[shell_mask]
@@ -645,7 +645,7 @@ class IterativeRefinement:
             complex_cross_product = (shell_a * np.conjugate(shell_b)).sum()
             norm_product = np.linalg.norm(shell_a) * np.linalg.norm(shell_b)
 
-            fsc[index] = complex_cross_product / norm_product
+            fsc[rad-1] = complex_cross_product / norm_product
 
         return fsc
 
