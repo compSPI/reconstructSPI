@@ -1,5 +1,7 @@
 """Iterative refinement with Bayesian expectation maximization."""
 
+import logging
+
 import numpy as np
 import torch
 from compSPI.transforms import (
@@ -256,6 +258,9 @@ class IterativeRefinement:
                 map_3d_f_norm_2 = IterativeRefinement.normalize_map(
                     map_3d_f_updated_2, counts_3d_updated_2, count_norm_const
                 )
+
+            logging.info(f"EM Loss #1: {em_loss_1}")
+            logging.info(f"EM Loss #2: {em_loss_2}")
 
             half_map_3d_f_1, half_map_3d_f_2 = IterativeRefinement.apply_noise_model(
                 map_3d_f_norm_1, map_3d_f_norm_2
@@ -659,6 +664,8 @@ class IterativeRefinement:
             Shape (n_slices,)
         z_norm_const : float64
           Normalizaing constant.
+        em_loss : float64
+          log posterior probability of single experimental image.
 
         Notes
         -----
