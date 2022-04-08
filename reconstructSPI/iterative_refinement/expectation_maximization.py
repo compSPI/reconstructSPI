@@ -12,7 +12,7 @@ from compSPI.transforms import (
 from geomstats.geometry import special_orthogonal
 from scipy.interpolate import griddata
 from scipy.ndimage import map_coordinates
-from simSPI.transfer import eval_ctf
+from simSPI.linear_simulator import ctf as ctf_module
 
 
 class IterativeRefinement:
@@ -26,9 +26,11 @@ class IterativeRefinement:
     particles : arr
         Particles to be reconstructed.
         Shape (n_particles, n_pix, n_pix)
-    ctf_info : list of dicts
-        Each dict contains CTF k,v pairs per particle.
-            Shape (n_particles,)
+    ctf_info : dict
+        dict containing CTF config and parameters.
+        See https://github.com/compSPI/simSPI/blob/master/simSPI/linear_simulator/ctf.py
+        for full documentation and parameter restrictions.
+
 
     References
     ----------
@@ -373,13 +375,33 @@ class IterativeRefinement:
         ctfs : arr
             Shape (n_ctfs, n_pix, n_pix)
         """
-        n_ctfs = len(self.ctf_info)
-        ctfs = []
 
-        for i in range(n_ctfs):
-            ctfs.append(eval_ctf(**self.ctf_info[i]))
+        class AttrDict(dict):
+            """Class to convert a dictionary to a class.
 
-        return np.array(ctfs)
+            Parameters
+            ----------
+            dict: dictionary
+
+            """
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.__dict__ = self
+
+        ctf = ctf_module.CTF(AttrDict(self.ctf_info))
+        tensor_shape = (len(self.particles), 1, 1, 1)
+        tensor_dict = {}
+
+        for k, v in self.ctf_info["ctf_params"].items():
+            tensor_dict[k] = torch.from_numpy(v.reshape(tensor_shape))
+
+        ctf_shape = (
+            len(self.particles),
+            self.particles.shape[1],
+            self.particles.shape[2],
+        )
+        return ctf.get_ctf(tensor_dict).numpy().reshape(ctf_shape)
 
     @staticmethod
     def grid_SO3_uniform(n_rotations):

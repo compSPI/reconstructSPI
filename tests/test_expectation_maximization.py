@@ -23,24 +23,40 @@ def n_particles():
 
 
 @pytest.fixture
-def test_ir(n_pix, n_particles):
+def rand_angle_list(n_particles):
+    """Get random astigmatism angle between 0 and 2pi."""
+    return np.random.uniform(low=0, high=2 * np.pi, size=(n_particles,))
+
+
+@pytest.fixture
+def rand_defocus(n_particles):
+    """Get random defocus values between 0.5 and 2.5."""
+    return np.random.uniform(low=0.5, high=2.5, size=(n_particles,))
+
+
+@pytest.fixture
+def test_ir(n_pix, n_particles, rand_defocus, rand_angle_list):
     """Instantiate IterativeRefinement class for testing."""
-    ex_ctf = {
-        "s": np.ones((n_pix, n_pix)),
-        "a": np.ones((n_pix, n_pix)),
-        "def1": 1.0,
-        "def2": 1.0,
-        "angast": 0.1,
-        "kv": 0.1,
-        "cs": 0.1,
-        "bf": 0.1,
-        "lp": 0.1,
+    pixels = n_pix
+    ctf_info = {
+        "amplitude_contrast": 0.1,
+        "b_factor": 0.0,
+        "batch_size": n_particles,
+        "cs": 2.7,
+        "ctf_size": pixels,
+        "kv": 300,
+        "pixel_size": 128,
+        "side_len": pixels,
+        "value_nyquist": 0.1,
+        "ctf_params": {
+            "defocus_u": rand_defocus,
+            "defocus_v": rand_defocus,
+            "defocus_angle": rand_angle_list,
+        },
     }
     map_3d = np.zeros((n_pix, n_pix, n_pix))
     particles = np.zeros((n_particles, n_pix, n_pix))
-    ctf_info = [
-        ex_ctf,
-    ] * n_particles
+
     itr = 2
     ir = em.IterativeRefinement(map_3d, particles, ctf_info, itr)
     return ir
