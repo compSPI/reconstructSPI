@@ -173,9 +173,6 @@ class IterativeRefinement:
             counts_3d_updated_1 = np.zeros_like(half_map_3d_r_1)
             counts_3d_updated_2 = np.zeros_like(half_map_3d_r_2)
 
-            log_post_1 = 0
-            log_post_2 = 0
-
             for particle_idx in range(particles_f_1.shape[0]):
                 ctf_1 = ctfs_1[particle_idx]
                 ctf_2 = ctfs_2[particle_idx]
@@ -219,9 +216,6 @@ class IterativeRefinement:
                     )
                 )
 
-                log_post_1 += em_loss_1
-                log_post_2 += em_loss_2
-
                 for one_slice_idx in range(len(bayes_factors_1)):
                     xyz = xyz_rotated[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
@@ -251,8 +245,8 @@ class IterativeRefinement:
                     map_3d_f_updated_2, counts_3d_updated_2, count_norm_const
                 )
 
-            logging.info(f"EM Loss #1: {log_post_1}")
-            logging.info(f"EM Loss #2: {log_post_2}")
+            logging.info(f"EM Loss #1: {em_loss_1}")
+            logging.info(f"EM Loss #2: {em_loss_2}")
 
             half_map_3d_f_1, half_map_3d_f_2 = IterativeRefinement.apply_noise_model(
                 map_3d_f_norm_1, map_3d_f_norm_2
@@ -301,7 +295,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -418,7 +412,7 @@ class IterativeRefinement:
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
         grid = np.meshgrid(axis_pts, axis_pts)
 
-        xy_plane = np.zeros((3, n_pix**2))
+        xy_plane = np.zeros((3, n_pix ** 2))
 
         for d in range(2):
             xy_plane[d, :] = grid[d].flatten()
@@ -500,7 +494,7 @@ class IterativeRefinement:
         slices = np.empty((n_rotations, n_pix, n_pix))
         overwrite_empty_with_zero = 0
         slices[:, :, 0] = overwrite_empty_with_zero
-        xyz_rotated = np.empty((n_rotations, 3, n_pix**2))
+        xyz_rotated = np.empty((n_rotations, 3, n_pix ** 2))
         for i in range(n_rotations):
             xyz_rotated[i] = rots[i] @ xy_plane
 
@@ -568,7 +562,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma**2) ** -1)
+        scale = -((2 * sigma ** 2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -672,9 +666,9 @@ class IterativeRefinement:
             mask = IterativeRefinement.binary_mask(
                 (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
             )
-            ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
+            ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs ** 2, axis=0))
             ctf_img_sq_sum[radius] = np.sum(
-                mask * np.sum(ctfs**2 * np.abs(projections_f) ** 2, axis=0)
+                mask * np.sum(ctfs ** 2 * np.abs(projections_f) ** 2, axis=0)
             )
             diff_sq_sum[radius] = np.sum(
                 mask * np.sum(np.abs(projections_f - ctfs * signal_values) ** 2, axis=0)
@@ -781,15 +775,15 @@ class IterativeRefinement:
             a, b, c = center
             nx0, nx1, nx2 = shape
             x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-            r2 = x0**2 + x1**2 + x2**2
+            r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
 
         elif d == 2:
             a, b = center
             nx0, nx1 = shape
             x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
-            r2 = x0**2 + x1**2
+            r2 = x0 ** 2 + x1 ** 2
 
-        mask = r2 <= radius**2
+        mask = r2 <= radius ** 2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
