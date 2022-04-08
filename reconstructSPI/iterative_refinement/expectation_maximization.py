@@ -8,6 +8,7 @@ from compSPI.transforms import (
     primal_to_fourier_3D,
 )
 from geomstats.geometry import special_orthogonal
+from scipy.interpolate import griddata
 from scipy.ndimage import map_coordinates
 from simSPI.transfer import eval_ctf
 
@@ -50,6 +51,13 @@ class IterativeRefinement:
         self.particles = particles
         self.ctf_info = ctf_info
         self.max_itr = max_itr
+        self.insert_slice_vectorized = np.vectorize(
+            IterativeRefinement.insert_slice,
+            excluded=[
+                "xyz",
+            ],
+            signature="(n,n),(3,m),(3,k)->(n,n,n),(n,n,n)",
+        )
 
     def iterative_refinement(self, count_norm_const=1):
         """Perform iterative refinement.
@@ -128,6 +136,8 @@ class IterativeRefinement:
             .reshape(map_shape)
         )
 
+        xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
+
         wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
             particles_f_1, ctfs_1
         )
@@ -154,15 +164,15 @@ class IterativeRefinement:
             )
 
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
-            xy0_plane = IterativeRefinement.generate_xy_plane(n_pix)
-
-            slices_1, xyz_rotated = IterativeRefinement.generate_slices(
-                half_map_3d_f_1, xy0_plane, rots
+            xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
+            xyz_rotated_padded = IterativeRefinement.pad_and_rotate_xy_planes(
+                xy0_plane, rots, n_pix
             )
+            xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
 
-            slices_2, xyz_rotated = IterativeRefinement.generate_slices(
-                half_map_3d_f_2, xy0_plane, rots
-            )
+            slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
+
+            slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
 
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
             map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
@@ -215,26 +225,30 @@ class IterativeRefinement:
                 )
 
                 for one_slice_idx in range(len(bayes_factors_1)):
-                    xyz = xyz_rotated[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
-                        particle_f_deconv_1.real, xyz, n_pix
+                    xyz_planes = xyz_rotated_padded[one_slice_idx]
+                    inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
+                        particle_f_deconv_1.real, xyz_planes, xyz_voxels
                     )
-                    inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
-                        particle_f_deconv_1.imag, xyz, n_pix
+                    inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
+                        particle_f_deconv_1.imag, xyz_planes, xyz_voxels
                     )
-                    map_3d_f_updated_1 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
-                    counts_3d_updated_1 += count_3d_r + count_3d_i
+                    map_3d_f_updated_1 += np.sum(
+                        inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
+                    )
+                    counts_3d_updated_1 += np.sum(count_3d_r + count_3d_i, axis=0)
 
                 for one_slice_idx in range(len(bayes_factors_2)):
-                    xyz = xyz_rotated[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
-                        particle_f_deconv_2.real, xyz, n_pix
+                    xyz_planes = xyz_rotated_padded[one_slice_idx]
+                    inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
+                        particle_f_deconv_2.real, xyz_planes, xyz_voxels
                     )
-                    inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
-                        particle_f_deconv_2.imag, xyz, n_pix
+                    inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
+                        particle_f_deconv_2.imag, xyz_planes, xyz_voxels
                     )
-                    map_3d_f_updated_2 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
-                    counts_3d_updated_2 += count_3d_r + count_3d_i
+                    map_3d_f_updated_2 += np.sum(
+                        inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
+                    )
+                    counts_3d_updated_2 += np.sum(count_3d_r + count_3d_i, axis=0)
 
                 map_3d_f_norm_1 = IterativeRefinement.normalize_map(
                     map_3d_f_updated_1, counts_3d_updated_1, count_norm_const
@@ -383,47 +397,58 @@ class IterativeRefinement:
         """
         geom = special_orthogonal.SpecialOrthogonal(3, "matrix")
         rots = geom.random_uniform(n_rotations)
+        if n_rotations == 1:
+            rots = np.array((rots,))
         negatives = np.tile(np.random.randint(2, size=n_rotations) * 2 - 1, (3, 3, 1)).T
         rots[:] *= negatives
         return rots
 
     @staticmethod
-    def generate_xy_plane(n_pix):
-        """Generate (x,y,0) plane.
+    def generate_cartesian_grid(n_pix, d):
+        """Generate (x,y,0) plane or (x,y,z) cube.
 
-        x, y axis values range [-n // 2, ..., n // 2 - 1]
+        Axis values range [-n // 2, ..., n // 2 - 1]
 
         Parameters
         ----------
         n_pix : int
             Number of pixels along one edge of the plane.
+        d : int
+            Dimension of output. 2 or 3.
 
         Returns
         -------
-        xy_plane : arr
-            Array describing xy plane in space.
-            Shape (3, n_pix**2)
+        xyz : arr
+            Array describing xy plane or xyz cube in space.
+            Shape (3, n_pix**d)
         """
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
-        grid = np.meshgrid(axis_pts, axis_pts)
+        if d == 2:
+            grid = np.meshgrid(axis_pts, axis_pts)
 
-        xy_plane = np.zeros((3, n_pix**2))
+            xy_plane = np.zeros((3, n_pix**2))
 
-        for d in range(2):
-            xy_plane[d, :] = grid[d].flatten()
+            for di in range(2):
+                xy_plane[di, :] = grid[di].flatten()
 
-        return xy_plane
+            return xy_plane
+        if d == 3:
+            grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
+
+            xyz = np.zeros((3, n_pix**3))
+
+            for di in range(3):
+                xyz[di] = grid[di].flatten()
+            xyz[[0, 1]] = xyz[[1, 0]]
+
+            return xyz
+        raise ValueError(f"Dimension {d} received was not 2 or 3.")
 
     @staticmethod
-    def generate_slices(map_3d_f, xy_plane, rots):
-        """Generate slice coordinates by rotating xy plane.
+    def generate_slices(map_3d_f, xyz_rotated):
+        """Generate slice coordinates via rotated xy plane.
 
         Interpolate values from map_3d_f onto 3D coordinates.
-
-
-        Shift the space into a centered position before rotating and
-        revert shift after rotation. This preserves the bounds of the
-        space.
 
         Parameters
         ----------
@@ -434,18 +459,9 @@ class IterativeRefinement:
                 0,0,0 pixel at map_3d_f[n/2,n/2,n/2]
                 n_pix/2-1,n_pix/2-1,n_pix/2-1 pixel at the final corner,
                     i.e. map_3d_f[n_pix-1,n_pix-1,n_pix-1]
-        xy_plane : arr
-            Array describing xy plane in space.
-            Shape (3, n_pix**2)
-            Convention x,y,z, i.e.
-                xy_plane[0] is x coordinate
-                xy_plane[1] is y coordinate
-                xy_plane[2] is z coordinate, which is all zero
-        n_pix : int
-            Number of pixels along one edge of the plane.
-        rots : arr
-            Array describing rotations.
-            Shape (n_rotations, n_pix**2, 3)
+        xyz_rotated : arr
+            Rotated xy planes.
+            Shape (n_rotations, 3, n_pix**2)
 
         Returns
         -------
@@ -453,9 +469,6 @@ class IterativeRefinement:
             Slice of map_3d_f. Corresponds to Fourier transform
             of projection of rotated map_3d_f.
             Shape (n_rotations, n_pix, n_pix)
-        xyz_rotated : arr
-            Rotated xy planes.
-            Shape (n_rotations, 3, n_pix**2)
 
 
         Notes
@@ -484,20 +497,130 @@ class IterativeRefinement:
         As far as the presence of noise in the edge pixels, masking that crops
         close enough to the centre will keeping a safe distance from the edge.
         """
-        n_rotations = len(rots)
+        n_rotations = len(xyz_rotated)
         n_pix = len(map_3d_f)
-        slices = np.empty((n_rotations, n_pix, n_pix))
-        overwrite_empty_with_zero = 0
-        slices[:, :, 0] = overwrite_empty_with_zero
-        xyz_rotated = np.empty((n_rotations, 3, n_pix**2))
+        slices = np.empty((n_rotations, n_pix, n_pix), dtype=float)
         for i in range(n_rotations):
-            xyz_rotated[i] = rots[i] @ xy_plane
-
-            slices[i] = map_coordinates(map_3d_f, xyz_rotated[i] + n_pix // 2).reshape(
+            slices[i] = map_coordinates(
+                map_3d_f.real,
+                xyz_rotated[i] + n_pix // 2,
+            ).reshape((n_pix, n_pix)) + 1j * map_coordinates(
+                map_3d_f.imag,
+                xyz_rotated[i] + n_pix // 2,
+            ).reshape(
                 (n_pix, n_pix)
             )
+        return slices
 
-        return slices, xyz_rotated
+    @staticmethod
+    def pad_and_rotate_xy_planes(xy_plane, rots, n_pix, z_offset=0.05):
+        """Rotate xy planes after padding them in z symmetrically by z_offset.
+
+        Parameters
+        ----------
+        xy_plane : arr
+            Array describing xy plane in space.
+            Shape (3, n_pix**2)
+            Convention x,y,z, i.e.
+                xy_plane[0] is x coordinate
+                xy_plane[1] is y coordinate
+                xy_plane[2] is z coordinate, which is all zero
+        rots : arr
+            Array describing rotations.
+            Shape (n_rotations, n_pix**2, 3)
+        n_pix : int
+            Number of pixels per axis.
+        z_offset : float
+            Symmetrical z-depth given to the xy_plane before rotating.
+            0 < z_offset < 1
+
+        Returns
+        -------
+        xyz_rotated : arr
+            Rotated xy planes, padded on either side by z_offset.
+            Shape (n_rotations, 3, 3 * n_pix**2)
+        """
+        n_rotations = len(rots)
+        offset = np.array(
+            [
+                [0, 0, z_offset],
+            ]
+        ).T
+        xy_plane_padded = np.concatenate(
+            (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
+        )
+        xyz_rotated_padded = np.empty((n_rotations, 3, 3 * n_pix**2))
+        for i in range(n_rotations):
+            xyz_rotated_padded[i] = rots[i] @ xy_plane_padded
+        return xyz_rotated_padded
+
+    @staticmethod
+    def insert_slice(slice_real, xy_rotated, xyz):
+        """Rotate slice and interpolate onto a 3D grid.
+
+        Rotated xy-planes are expected to be of nonzero depth (i.e. a rotated
+        2D plane with some small added z-depth to give "volume" to the slice in
+        order for interpolation to be feasible). The slice values are constant
+        along the depth axis of the slice.
+
+        Parameters
+        ----------
+        slice_real : float64 arr
+            Shape (n_pix, n_pix) the slice of interest.
+        xy_rotated : arr
+            Shape (3, 3*n_pix**2) nonzero-depth "plane" of rotated slice coords.
+        xyz : arr
+            Shape (3, n_pix**3) voxels of 3D map.
+
+        Returns
+        -------
+        inserted_slice_3d : float64 arr
+            Rotated slice in 3D voxel array.
+            Shape (n_pix, n_pix, n_pix)
+        count_3d : arr
+            Voxel array to count slice presence.
+            Shape (n_pix, n_pix, n_pix)
+        """
+        n_pix = slice_real.shape[0]
+        slice_values = np.tile(slice_real.reshape((n_pix**2,)), (3,))
+
+        inserted_slice_3d = griddata(
+            xy_rotated.T, slice_values, xyz.T, fill_value=0, method="linear"
+        ).reshape((n_pix, n_pix, n_pix))
+
+        count_3d = griddata(
+            xy_rotated.T,
+            np.ones_like(slice_values),
+            xyz.T,
+            fill_value=0,
+            method="linear",
+        ).reshape((n_pix, n_pix, n_pix))
+
+        return inserted_slice_3d, count_3d
+
+    def insert_slice_v(self, slices_real, xy_rots, xyz):
+        """Vectorized version of insert_slice.
+
+        Parameters
+        ----------
+        slices_real : float64 arr
+            Shape (n_slices, n_pix, n_pix) the slices of interest.
+        xy_rots : arr
+            Shape (n_slices, 3, 3*n_pix**2) nonzero-depth "planes" of rotated
+            slice coords.
+        xyz : arr
+            Shape (3, n_pix**3) voxels of 3D map.
+
+        Returns
+        -------
+        inserted_slices_3d : float64 arr
+            Rotated slices in 3D voxel arrays.
+            Shape (n_slices, n_pix, n_pix, n_pix)
+        counts_3d : arr
+            Voxel array to count slice presence.
+            Shape (n_slices, n_pix, n_pix, n_pix)
+        """
+        return self.insert_slice_vectorized(slices_real, xy_rots, xyz)
 
     @staticmethod
     def apply_ctf_to_slice(particle_slice, ctf):
@@ -674,35 +797,6 @@ class IterativeRefinement:
         ssnr_1d = (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
 
         return IterativeRefinement.expand_1d_to_nd(ssnr_1d, d=2)
-
-    @staticmethod
-    def insert_slice(slice_real, xyz, n_pix):
-        """Rotate slice and interpolate onto a 3D grid.
-
-        Parameters
-        ----------
-        slice_real : float64 arr
-            Shape (n_pix, n_pix) the slice of interest.
-        xyz : arr
-            Shape (n_pix**2, 3) plane corresponding to slice rotation.
-        n_pix : int
-            Number of pixels.
-
-        Returns
-        -------
-        inserted_slice_3d : float64 arr
-            Rotated slice in 3D voxel array.
-            Shape (n_pix, n_pix, n_pix)
-        count_3d : arr
-            Voxel array to count slice presence: 1 if slice present,
-            otherwise 0.
-            Shape (n_pix, n_pix, n_pix)
-        """
-        shape = len(xyz)
-        count_3d = np.ones((n_pix, n_pix, n_pix))
-        count_3d[0, 0, 0] *= shape
-        inserted_slice_3d = np.ones((n_pix, n_pix, n_pix))
-        return inserted_slice_3d, count_3d
 
     @staticmethod
     def compute_fsc(map_3d_f_1, map_3d_f_2):
