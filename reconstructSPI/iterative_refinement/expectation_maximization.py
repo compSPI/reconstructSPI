@@ -636,7 +636,7 @@ class IterativeRefinement:
         fsc = np.empty(n_pix // 2, dtype=np.complex64)
 
         for rad in range(1, n_pix // 2 + 1):
-            shell_mask = IterativeRefinement.binary_mask_3d(
+            shell_mask = IterativeRefinement.binary_mask(
                 center=(n_pix // 2, n_pix // 2, n_pix // 2),
                 radius=rad,
                 shape=map_3d_f_1.shape,
