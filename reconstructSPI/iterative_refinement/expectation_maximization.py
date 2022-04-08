@@ -765,7 +765,7 @@ class IterativeRefinement:
             particles_f, ctfs, small_number
         )
         wiener_small_numbers = np.where(
-            np.isclose(wiener_small_numbers, 0), fill_zeros, wiener_small_numbers
+            np.isclose(wiener_small_numbers, 0), 1 / fill_zeros, wiener_small_numbers
         )
         wiener_small_numbers = 1 / wiener_small_numbers
         return wiener_small_numbers
@@ -845,17 +845,31 @@ class IterativeRefinement:
         noise_estimate : arr
             Noise estimates from half maps.
             Shape (n_pix // 2,)
+
+        Source(s):
+        ---------
+        https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/fsc.ipynb
         """
-        # write fast vectorized fsc from code snippets in
-        # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/fsc.ipynb
-        # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/mFSC.ipynb
-        # https://github.com/geoffwoollard/learn_cryoem_math/blob/master/nb/guinier_fsc_sharpen.ipynb
-        n_pix_1 = len(map_3d_f_1)
-        n_pix_2 = len(map_3d_f_2)
-        fsc_1d_1 = np.ones(n_pix_1 // 2)
-        fsc_1d_2 = np.ones(n_pix_2 // 2)
-        noise_estimates = fsc_1d_1 * fsc_1d_2
-        return noise_estimates
+        n_pix = map_3d_f_2.shape[0]
+        fsc = np.empty(n_pix // 2, dtype=np.complex64)
+
+        for rad in range(1, n_pix // 2 + 1):
+            shell_mask = IterativeRefinement.binary_mask(
+                center=(n_pix // 2, n_pix // 2, n_pix // 2),
+                radius=rad,
+                shape=map_3d_f_1.shape,
+                fill=False,
+            ).astype(np.bool)
+
+            shell_a = map_3d_f_1[shell_mask]
+            shell_b = map_3d_f_2[shell_mask]
+
+            complex_cross_product = (shell_a * np.conjugate(shell_b)).sum()
+            norm_product = np.linalg.norm(shell_a) * np.linalg.norm(shell_b)
+
+            fsc[rad - 1] = complex_cross_product / norm_product
+
+        return fsc
 
     @staticmethod
     def binary_mask(center, radius, shape, d=3, fill=True, shell_thickness=1):

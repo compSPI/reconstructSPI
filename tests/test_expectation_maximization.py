@@ -364,11 +364,16 @@ def test_insert_slice_v(test_ir, n_pix):
 
 def test_compute_fsc(test_ir, n_pix):
     """Test computation of FSC."""
-    map_1 = np.ones((n_pix, n_pix, n_pix))
-    map_2 = np.ones((n_pix, n_pix, n_pix))
+    map_1_ones = np.ones((n_pix, n_pix, n_pix))
 
-    fsc_1 = test_ir.compute_fsc(map_1, map_2)
+    fsc_1 = test_ir.compute_fsc(map_1_ones, map_1_ones)
+    fsc_diff_amplitudes = test_ir.compute_fsc(map_1_ones * 2, map_1_ones * 4.5)
+    fsc_diff_phases = test_ir.compute_fsc(map_1_ones * 1, map_1_ones * -1)
+
     assert fsc_1.shape == (n_pix // 2,)
+    assert np.allclose(fsc_1.real, 1)
+    assert np.allclose(fsc_diff_amplitudes.real, 1)
+    assert np.allclose(fsc_diff_phases.real, -1)
 
 
 def test_binary_mask(test_ir):
