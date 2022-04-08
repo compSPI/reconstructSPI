@@ -24,32 +24,9 @@ class IterativeRefinement:
         Particles to be reconstructed.
         Shape (n_particles, n_pix, n_pix)
     ctf_info : dict
-        dict containing CTF config and parameters
-            amplitude_contrast : float
-                contrast
-            b_factor : float
-                b factor
-            batch_size : int
-                num of particles
-            cs : float
-                cs
-            ctf_size : int
-                ctf size
-            kv : float
-                angstroms
-            pixel_size : int
-                range [128, 256]
-            side_len : int
-                side length
-            value_nyquist : float
-                how far out in Fourier space
-            ctf_params : dict
-                defocus_u : list of floats
-                    range [0.5, 2.5]
-                defocus_v : list of floats
-                    range [0.5, 2.5]
-                defocus_angle : list of floats
-                    range [0, 2pi]
+        dict containing CTF config and parameters.
+        See https://github.com/compSPI/simSPI/blob/master/simSPI/linear_simulator/ctf.py
+        for full documentation and parameter restrictions.
 
 
     References

@@ -44,7 +44,7 @@ def test_ir(n_pix, n_particles, rand_defocus, rand_angle_list):
         "batch_size": n_particles,
         "cs": 2.7,
         "ctf_size": pixels,
-        "kv": 0.1968,
+        "kv": 300,
         "pixel_size": 128,
         "side_len": pixels,
         "value_nyquist": 0.1,
