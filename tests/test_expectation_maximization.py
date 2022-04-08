@@ -37,8 +37,8 @@ def rand_defocus(n_particles):
 @pytest.fixture
 def test_ir(n_pix, n_particles):
     """Instantiate IterativeRefinement class for testing."""
-    defocus_list = rand_defocus
-    angle_list = rand_angle_list
+    defocus_list = rand_defocus(n_particles)
+    angle_list = rand_angle_list(n_particles)
     pixels = n_pix
     ctf_info = {
         "amplitude_contrast": 0.1,
