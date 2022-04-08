@@ -765,7 +765,7 @@ class IterativeRefinement:
             particles_f, ctfs, small_number
         )
         wiener_small_numbers = np.where(
-            np.isclose(wiener_small_numbers, 0), fill_zeros, wiener_small_numbers
+            np.isclose(wiener_small_numbers, 0), 1 / fill_zeros, wiener_small_numbers
         )
         wiener_small_numbers = 1 / wiener_small_numbers
         return wiener_small_numbers
