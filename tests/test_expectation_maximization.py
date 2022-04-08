@@ -587,9 +587,9 @@ def test_iterative_refinement(test_ir, n_pix):
         "side_len": n_pix,
         "value_nyquist": 0.1,
         "ctf_params": {
-            "defocus_u": [1 for _ in range(n_particles)],
-            "defocus_v": [1 for _ in range(n_particles)],
-            "defocus_angle": [0 for _ in range(n_particles)],
+            "defocus_u": np.array([1 for _ in range(n_particles)]),
+            "defocus_v": np.array([1 for _ in range(n_particles)]),
+            "defocus_angle": np.array([0 for _ in range(n_particles)]),
         },
     }
 
