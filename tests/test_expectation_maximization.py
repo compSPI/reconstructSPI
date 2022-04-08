@@ -45,7 +45,7 @@ def test_ir(n_pix, n_particles, rand_defocus, rand_angle_list):
         "cs": 2.7,
         "ctf_size": pixels,
         "kv": 300,
-        "pixel_size": 128,
+        "pixel_size": 1,
         "side_len": pixels,
         "value_nyquist": 0.1,
         "ctf_params": {
@@ -99,7 +99,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_cartesian_grid(test_ir, n_pix):
     """Test generation of xy plane and xyz cube."""
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
-    assert xy_plane.shape == (3, n_pix**2)
+    assert xy_plane.shape == (3, n_pix ** 2)
 
     n_pix_2 = 2
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
@@ -110,7 +110,7 @@ def test_generate_cartesian_grid(test_ir, n_pix):
     assert np.isclose(xy_plane.min(), -n_pix_2 // 2)
 
     xyz_cube = test_ir.generate_cartesian_grid(n_pix, 3)
-    assert xyz_cube.shape == (3, n_pix**3)
+    assert xyz_cube.shape == (3, n_pix ** 3)
 
     n_pix_2 = 2
     cube_2 = np.array(
@@ -140,7 +140,7 @@ def test_pad_and_rotate_xy_plane(test_ir, n_pix, n_particles):
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     rots = test_ir.grid_SO3_uniform(n_rotations)
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
-    assert xyz_rotated_padded.shape == (n_rotations, 3, 3 * n_pix**2)
+    assert xyz_rotated_padded.shape == (n_rotations, 3, 3 * n_pix ** 2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -169,11 +169,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     slices = test_ir.generate_slices(map_3d, xyz_rotated)
 
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_padded.shape == (n_particles, 3, 3 * n_pix**2)
+    assert xyz_rotated_padded.shape == (n_particles, 3, 3 * n_pix ** 2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
@@ -199,7 +199,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
         xy_plane, rot_90deg_about_y, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
 
     slices = test_ir.generate_slices(map_plane_ones_xzplane, xyz_rotated)
     omit_idx_artefact = 1
@@ -220,7 +220,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
         xy_plane, rot_180deg_about_z, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
 
     slices = test_ir.generate_slices(map_plane_ones_xyplane, xyz_rotated)
     assert np.allclose(
@@ -322,7 +322,7 @@ def test_insert_slice(test_ir, n_pix):
     )
 
     slices = test_ir.generate_slices(
-        map_plane_ones, xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+        map_plane_ones, xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     )
 
     xyz_voxels = test_ir.generate_cartesian_grid(n_pix, 3)
@@ -555,13 +555,62 @@ def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
 
 
 def test_iterative_refinement(test_ir, n_pix):
-    """Test complete iterative refinement algorithm."""
+    """Test complete iterative refinement algorithm.
+
+    1. Test shapes
+
+    2. Test sphere
+
+    """
     (
         map_3d_r_final,
         half_map_3d_r_1,
         half_map_3d_r_2,
         fsc_1d,
     ) = test_ir.iterative_refinement()
+
+    assert map_3d_r_final.shape == (n_pix, n_pix, n_pix)
+    assert half_map_3d_r_1.shape == (n_pix, n_pix, n_pix)
+    assert half_map_3d_r_2.shape == (n_pix, n_pix, n_pix)
+    assert fsc_1d.shape == (n_pix // 2,)
+
+    n_particles = 10
+    n_pix = 128
+    ctf_info = {
+        "amplitude_contrast": 0.1,
+        "b_factor": 0.0,
+        "batch_size": n_particles,
+        "cs": 2.7,
+        "ctf_size": n_pix,
+        "kv": 300,
+        "pixel_size": 1,
+        "side_len": n_pix,
+        "value_nyquist": 0.1,
+        "ctf_params": {
+            "defocus_u": [1 for _ in range(n_particles)],
+            "defocus_v": [1 for _ in range(n_particles)],
+            "defocus_angle": [0 for _ in range(n_particles)],
+        },
+    }
+
+    center = (n_pix // 2, n_pix // 2, n_pix // 2)
+    radius = n_pix // 2
+    shape = (n_pix, n_pix, n_pix)
+    map_3d = test_ir.binary_mask(center, radius, shape, 3, fill=True, shell_thickness=1)
+
+    rots = test_ir.grid_SO3_uniform(n_particles)
+    xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
+    slices = test_ir.generate_slices(map_3d, xyz_rotated)
+    particles = slices
+    itr = 2
+    (
+        map_3d_r_final,
+        half_map_3d_r_1,
+        half_map_3d_r_2,
+        fsc_1d,
+    ) = em.IterativeRefinement(map_3d, particles, ctf_info, itr).iterative_refinement()
 
     assert map_3d_r_final.shape == (n_pix, n_pix, n_pix)
     assert half_map_3d_r_1.shape == (n_pix, n_pix, n_pix)
