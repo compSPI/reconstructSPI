@@ -37,8 +37,6 @@ def rand_defocus(n_particles):
 @pytest.fixture
 def test_ir(n_pix, n_particles):
     """Instantiate IterativeRefinement class for testing."""
-    defocus_list = rand_defocus(n_particles)
-    angle_list = rand_angle_list(n_particles)
     pixels = n_pix
     ctf_info = {
         "amplitude_contrast": 0.1,
@@ -51,9 +49,9 @@ def test_ir(n_pix, n_particles):
         "side_len": pixels,
         "value_nyquist": 0.1,
         "ctf_params": {
-            "defocus_u": defocus_list,
-            "defocus_v": defocus_list,
-            "defocus_angle": angle_list,
+            "defocus_u": rand_defocus,
+            "defocus_v": rand_defocus,
+            "defocus_angle": rand_angle_list,
         },
     }
     map_3d = np.zeros((n_pix, n_pix, n_pix))
@@ -98,7 +96,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_xy_plane(test_ir, n_pix):
     """Test generation of xy plane."""
     xy_plane = test_ir.generate_xy_plane(n_pix)
-    assert xy_plane.shape == (3, n_pix**2)
+    assert xy_plane.shape == (3, n_pix ** 2)
 
     n_pix_2 = 2
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
@@ -136,7 +134,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xy_plane = test_ir.generate_xy_plane(n_pix)
     slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, rots)
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
+    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix ** 2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
