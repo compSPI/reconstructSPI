@@ -8,6 +8,7 @@ from compSPI.transforms import (
     primal_to_fourier_3D,
 )
 from geomstats.geometry import special_orthogonal
+from scipy.interpolate import griddata
 from scipy.ndimage import map_coordinates
 from simSPI.transfer import eval_ctf
 
@@ -50,8 +51,15 @@ class IterativeRefinement:
         self.particles = particles
         self.ctf_info = ctf_info
         self.max_itr = max_itr
+        self.insert_slice_vectorized = np.vectorize(
+            IterativeRefinement.insert_slice,
+            excluded=[
+                "xyz",
+            ],
+            signature="(n,n),(3,m),(3,k)->(n,n,n),(n,n,n)",
+        )
 
-    def iterative_refinement(self, wiener_small_number=0.01, count_norm_const=1):
+    def iterative_refinement(self, count_norm_const=1):
         """Perform iterative refinement.
 
         Acts in a Bayesian expectation maximization setting,
@@ -59,8 +67,6 @@ class IterativeRefinement:
 
         Parameters
         ----------
-        wiener_small_number : float
-            Used to tune Wiener filter.
         count_norm_const : float
             Used to tune normalization of slice inserting.
 
@@ -130,6 +136,15 @@ class IterativeRefinement:
             .reshape(map_shape)
         )
 
+        xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
+
+        wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
+            particles_f_1, ctfs_1
+        )
+        wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(
+            particles_f_2, ctfs_2
+        )
+
         for _ in range(self.max_itr):
 
             half_map_3d_f_1 = (
@@ -149,15 +164,15 @@ class IterativeRefinement:
             )
 
             rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
-            xy0_plane = IterativeRefinement.generate_xy_plane(n_pix)
-
-            slices_1, xyz_rotated = IterativeRefinement.generate_slices(
-                half_map_3d_f_1, xy0_plane, rots
+            xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
+            xyz_rotated_padded = IterativeRefinement.pad_and_rotate_xy_planes(
+                xy0_plane, rots, n_pix
             )
+            xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
 
-            slices_2, xyz_rotated = IterativeRefinement.generate_slices(
-                half_map_3d_f_2, xy0_plane, rots
-            )
+            slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
+
+            slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
 
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
             map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
@@ -171,10 +186,10 @@ class IterativeRefinement:
                 ctf_2 = ctfs_2[particle_idx]
 
                 particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_1, ctf_1, wiener_small_number
+                    particles_f_1, ctf_1, wiener_small_numbers_1
                 )
                 particle_f_deconv_2 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_2, ctf_1, wiener_small_number
+                    particles_f_2, ctf_1, wiener_small_numbers_2
                 )
 
                 ctf_vectorized = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
@@ -210,26 +225,30 @@ class IterativeRefinement:
                 )
 
                 for one_slice_idx in range(len(bayes_factors_1)):
-                    xyz = xyz_rotated[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
-                        particle_f_deconv_1.real, xyz, n_pix
+                    xyz_planes = xyz_rotated_padded[one_slice_idx]
+                    inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
+                        particle_f_deconv_1.real, xyz_planes, xyz_voxels
                     )
-                    inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
-                        particle_f_deconv_1.imag, xyz, n_pix
+                    inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
+                        particle_f_deconv_1.imag, xyz_planes, xyz_voxels
                     )
-                    map_3d_f_updated_1 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
-                    counts_3d_updated_1 += count_3d_r + count_3d_i
+                    map_3d_f_updated_1 += np.sum(
+                        inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
+                    )
+                    counts_3d_updated_1 += np.sum(count_3d_r + count_3d_i, axis=0)
 
                 for one_slice_idx in range(len(bayes_factors_2)):
-                    xyz = xyz_rotated[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = IterativeRefinement.insert_slice(
-                        particle_f_deconv_2.real, xyz, n_pix
+                    xyz_planes = xyz_rotated_padded[one_slice_idx]
+                    inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
+                        particle_f_deconv_2.real, xyz_planes, xyz_voxels
                     )
-                    inserted_slice_3d_i, count_3d_i = IterativeRefinement.insert_slice(
-                        particle_f_deconv_2.imag, xyz, n_pix
+                    inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
+                        particle_f_deconv_2.imag, xyz_planes, xyz_voxels
                     )
-                    map_3d_f_updated_2 += inserted_slice_3d_r + 1j * inserted_slice_3d_i
-                    counts_3d_updated_2 += count_3d_r + count_3d_i
+                    map_3d_f_updated_2 += np.sum(
+                        inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
+                    )
+                    counts_3d_updated_2 += np.sum(count_3d_r + count_3d_i, axis=0)
 
                 map_3d_f_norm_1 = IterativeRefinement.normalize_map(
                     map_3d_f_updated_1, counts_3d_updated_1, count_norm_const
@@ -243,7 +262,7 @@ class IterativeRefinement:
             )
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
+        fsc_3d = IterativeRefinement.expand_1d_to_nd(fsc_1d)
 
         map_3d_f_final = ((half_map_3d_f_1 + half_map_3d_f_2) / 2) * fsc_3d
         map_3d_f_final = torch.from_numpy(map_3d_f_final.reshape(map_shape))
@@ -285,7 +304,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts ** 2)
+        return map_3d * counts / (norm_const + counts**2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -308,7 +327,7 @@ class IterativeRefinement:
         """
         fsc_1d = IterativeRefinement.compute_fsc(map_3d_f_norm_1, map_3d_f_norm_2)
 
-        fsc_3d = IterativeRefinement.expand_1d_to_3d(fsc_1d)
+        fsc_3d = IterativeRefinement.expand_1d_to_nd(fsc_1d)
 
         map_3d_f_filtered_1 = map_3d_f_norm_1 * fsc_3d
         map_3d_f_filtered_2 = map_3d_f_norm_2 * fsc_3d
@@ -355,7 +374,7 @@ class IterativeRefinement:
         for i in range(n_ctfs):
             ctfs.append(eval_ctf(**self.ctf_info[i]))
 
-        return ctfs
+        return np.array(ctfs)
 
     @staticmethod
     def grid_SO3_uniform(n_rotations):
@@ -378,47 +397,58 @@ class IterativeRefinement:
         """
         geom = special_orthogonal.SpecialOrthogonal(3, "matrix")
         rots = geom.random_uniform(n_rotations)
+        if n_rotations == 1:
+            rots = np.array((rots,))
         negatives = np.tile(np.random.randint(2, size=n_rotations) * 2 - 1, (3, 3, 1)).T
         rots[:] *= negatives
         return rots
 
     @staticmethod
-    def generate_xy_plane(n_pix):
-        """Generate (x,y,0) plane.
+    def generate_cartesian_grid(n_pix, d):
+        """Generate (x,y,0) plane or (x,y,z) cube.
 
-        x, y axis values range [-n // 2, ..., n // 2 - 1]
+        Axis values range [-n // 2, ..., n // 2 - 1]
 
         Parameters
         ----------
         n_pix : int
             Number of pixels along one edge of the plane.
+        d : int
+            Dimension of output. 2 or 3.
 
         Returns
         -------
-        xy_plane : arr
-            Array describing xy plane in space.
-            Shape (3, n_pix**2)
+        xyz : arr
+            Array describing xy plane or xyz cube in space.
+            Shape (3, n_pix**d)
         """
         axis_pts = np.arange(-n_pix // 2, n_pix // 2)
-        grid = np.meshgrid(axis_pts, axis_pts)
+        if d == 2:
+            grid = np.meshgrid(axis_pts, axis_pts)
 
-        xy_plane = np.zeros((3, n_pix ** 2))
+            xy_plane = np.zeros((3, n_pix**2))
 
-        for d in range(2):
-            xy_plane[d, :] = grid[d].flatten()
+            for di in range(2):
+                xy_plane[di, :] = grid[di].flatten()
 
-        return xy_plane
+            return xy_plane
+        if d == 3:
+            grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
+
+            xyz = np.zeros((3, n_pix**3))
+
+            for di in range(3):
+                xyz[di] = grid[di].flatten()
+            xyz[[0, 1]] = xyz[[1, 0]]
+
+            return xyz
+        raise ValueError(f"Dimension {d} received was not 2 or 3.")
 
     @staticmethod
-    def generate_slices(map_3d_f, xy_plane, rots):
-        """Generate slice coordinates by rotating xy plane.
+    def generate_slices(map_3d_f, xyz_rotated):
+        """Generate slice coordinates via rotated xy plane.
 
         Interpolate values from map_3d_f onto 3D coordinates.
-
-
-        Shift the space into a centered position before rotating and
-        revert shift after rotation. This preserves the bounds of the
-        space.
 
         Parameters
         ----------
@@ -429,18 +459,9 @@ class IterativeRefinement:
                 0,0,0 pixel at map_3d_f[n/2,n/2,n/2]
                 n_pix/2-1,n_pix/2-1,n_pix/2-1 pixel at the final corner,
                     i.e. map_3d_f[n_pix-1,n_pix-1,n_pix-1]
-        xy_plane : arr
-            Array describing xy plane in space.
-            Shape (3, n_pix**2)
-            Convention x,y,z, i.e.
-                xy_plane[0] is x coordinate
-                xy_plane[1] is y coordinate
-                xy_plane[2] is z coordinate, which is all zero
-        n_pix : int
-            Number of pixels along one edge of the plane.
-        rots : arr
-            Array describing rotations.
-            Shape (n_rotations, n_pix**2, 3)
+        xyz_rotated : arr
+            Rotated xy planes.
+            Shape (n_rotations, 3, n_pix**2)
 
         Returns
         -------
@@ -448,9 +469,6 @@ class IterativeRefinement:
             Slice of map_3d_f. Corresponds to Fourier transform
             of projection of rotated map_3d_f.
             Shape (n_rotations, n_pix, n_pix)
-        xyz_rotated : arr
-            Rotated xy planes.
-            Shape (n_rotations, 3, n_pix**2)
 
 
         Notes
@@ -479,20 +497,130 @@ class IterativeRefinement:
         As far as the presence of noise in the edge pixels, masking that crops
         close enough to the centre will keeping a safe distance from the edge.
         """
-        n_rotations = len(rots)
+        n_rotations = len(xyz_rotated)
         n_pix = len(map_3d_f)
-        slices = np.empty((n_rotations, n_pix, n_pix))
-        overwrite_empty_with_zero = 0
-        slices[:, :, 0] = overwrite_empty_with_zero
-        xyz_rotated = np.empty((n_rotations, 3, n_pix ** 2))
+        slices = np.empty((n_rotations, n_pix, n_pix), dtype=float)
         for i in range(n_rotations):
-            xyz_rotated[i] = rots[i] @ xy_plane
-
-            slices[i] = map_coordinates(map_3d_f, xyz_rotated[i] + n_pix // 2).reshape(
+            slices[i] = map_coordinates(
+                map_3d_f.real,
+                xyz_rotated[i] + n_pix // 2,
+            ).reshape((n_pix, n_pix)) + 1j * map_coordinates(
+                map_3d_f.imag,
+                xyz_rotated[i] + n_pix // 2,
+            ).reshape(
                 (n_pix, n_pix)
             )
+        return slices
 
-        return slices, xyz_rotated
+    @staticmethod
+    def pad_and_rotate_xy_planes(xy_plane, rots, n_pix, z_offset=0.05):
+        """Rotate xy planes after padding them in z symmetrically by z_offset.
+
+        Parameters
+        ----------
+        xy_plane : arr
+            Array describing xy plane in space.
+            Shape (3, n_pix**2)
+            Convention x,y,z, i.e.
+                xy_plane[0] is x coordinate
+                xy_plane[1] is y coordinate
+                xy_plane[2] is z coordinate, which is all zero
+        rots : arr
+            Array describing rotations.
+            Shape (n_rotations, n_pix**2, 3)
+        n_pix : int
+            Number of pixels per axis.
+        z_offset : float
+            Symmetrical z-depth given to the xy_plane before rotating.
+            0 < z_offset < 1
+
+        Returns
+        -------
+        xyz_rotated : arr
+            Rotated xy planes, padded on either side by z_offset.
+            Shape (n_rotations, 3, 3 * n_pix**2)
+        """
+        n_rotations = len(rots)
+        offset = np.array(
+            [
+                [0, 0, z_offset],
+            ]
+        ).T
+        xy_plane_padded = np.concatenate(
+            (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
+        )
+        xyz_rotated_padded = np.empty((n_rotations, 3, 3 * n_pix**2))
+        for i in range(n_rotations):
+            xyz_rotated_padded[i] = rots[i] @ xy_plane_padded
+        return xyz_rotated_padded
+
+    @staticmethod
+    def insert_slice(slice_real, xy_rotated, xyz):
+        """Rotate slice and interpolate onto a 3D grid.
+
+        Rotated xy-planes are expected to be of nonzero depth (i.e. a rotated
+        2D plane with some small added z-depth to give "volume" to the slice in
+        order for interpolation to be feasible). The slice values are constant
+        along the depth axis of the slice.
+
+        Parameters
+        ----------
+        slice_real : float64 arr
+            Shape (n_pix, n_pix) the slice of interest.
+        xy_rotated : arr
+            Shape (3, 3*n_pix**2) nonzero-depth "plane" of rotated slice coords.
+        xyz : arr
+            Shape (3, n_pix**3) voxels of 3D map.
+
+        Returns
+        -------
+        inserted_slice_3d : float64 arr
+            Rotated slice in 3D voxel array.
+            Shape (n_pix, n_pix, n_pix)
+        count_3d : arr
+            Voxel array to count slice presence.
+            Shape (n_pix, n_pix, n_pix)
+        """
+        n_pix = slice_real.shape[0]
+        slice_values = np.tile(slice_real.reshape((n_pix**2,)), (3,))
+
+        inserted_slice_3d = griddata(
+            xy_rotated.T, slice_values, xyz.T, fill_value=0, method="linear"
+        ).reshape((n_pix, n_pix, n_pix))
+
+        count_3d = griddata(
+            xy_rotated.T,
+            np.ones_like(slice_values),
+            xyz.T,
+            fill_value=0,
+            method="linear",
+        ).reshape((n_pix, n_pix, n_pix))
+
+        return inserted_slice_3d, count_3d
+
+    def insert_slice_v(self, slices_real, xy_rots, xyz):
+        """Vectorized version of insert_slice.
+
+        Parameters
+        ----------
+        slices_real : float64 arr
+            Shape (n_slices, n_pix, n_pix) the slices of interest.
+        xy_rots : arr
+            Shape (n_slices, 3, 3*n_pix**2) nonzero-depth "planes" of rotated
+            slice coords.
+        xyz : arr
+            Shape (3, n_pix**3) voxels of 3D map.
+
+        Returns
+        -------
+        inserted_slices_3d : float64 arr
+            Rotated slices in 3D voxel arrays.
+            Shape (n_slices, n_pix, n_pix, n_pix)
+        counts_3d : arr
+            Voxel array to count slice presence.
+            Shape (n_slices, n_pix, n_pix, n_pix)
+        """
+        return self.insert_slice_vectorized(slices_real, xy_rots, xyz)
 
     @staticmethod
     def apply_ctf_to_slice(particle_slice, ctf):
@@ -550,7 +678,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma ** 2) ** -1)
+        scale = -((2 * sigma**2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -559,16 +687,16 @@ class IterativeRefinement:
         return bayesian_weights, z_norm_const, em_loss
 
     @staticmethod
-    def apply_wiener_filter(projection, ctf, small_number):
+    def apply_wiener_filter(projection_f, ctf, small_number=0.01):
         """Apply Wiener filter to particle projection.
 
         Parameters
         ----------
-        projection : arr
+        projection_f : arr
             Shape (n_pix, n_pix)
         ctf : arr
             Shape (n_pix, n_pix)
-        small_number : float
+        small_number : float or arr (n_pix, n_pix)
             Used for tuning Wiener filter.
 
         Returns
@@ -577,37 +705,98 @@ class IterativeRefinement:
             Shape (n_pix, n_pix) the filtered projection.
         """
         wfilter = ctf / (ctf * ctf + small_number)
-        projection_wfilter_f = projection * wfilter
+        projection_wfilter_f = projection_f * wfilter
         return projection_wfilter_f
 
     @staticmethod
-    def insert_slice(slice_real, xyz, n_pix):
-        """Rotate slice and interpolate onto a 3D grid.
+    def get_wiener_small_numbers(particles_f, ctfs, small_number=0.01, fill_zeros=0.01):
+        """Compute wiener small number array.
 
         Parameters
         ----------
-        slice_real : float64 arr
-            Shape (n_pix, n_pix) the slice of interest.
-        xyz : arr
-            Shape (n_pix**2, 3) plane corresponding to slice rotation.
-        n_pix : int
-            Number of pixels.
+        particles_f : arr
+            Shape (n_particles, n_pix, n_pix)
+            Fourier space particle projections.
+        ctfs : arr
+            Shape (n_particles, n_pix, n_pix)
+            Ctfs of particles
+        small_number : float
+            Small number for approximating wiener filter effects
+        fill_zeros : float
+            Small number used in place of zeros that come from small number
+            computations.
 
         Returns
         -------
-        inserted_slice_3d : float64 arr
-            Rotated slice in 3D voxel array.
-            Shape (n_pix, n_pix, n_pix)
-        count_3d : arr
-            Voxel array to count slice presence: 1 if slice present,
-            otherwise 0.
-            Shape (n_pix, n_pix, n_pix)
+        wiener_small_numbers : arr
+            Shape (n_pix, n_pix)
+            Small numbers to be used in wiener filtering each pixel of projections
         """
-        shape = len(xyz)
-        count_3d = np.ones((n_pix, n_pix, n_pix))
-        count_3d[0, 0, 0] *= shape
-        inserted_slice_3d = np.ones((n_pix, n_pix, n_pix))
-        return inserted_slice_3d, count_3d
+        wiener_small_numbers = IterativeRefinement.compute_ssnr(
+            particles_f, ctfs, small_number
+        )
+        wiener_small_numbers = np.where(
+            np.isclose(wiener_small_numbers, 0), fill_zeros, wiener_small_numbers
+        )
+        wiener_small_numbers = 1 / wiener_small_numbers
+        return wiener_small_numbers
+
+    @staticmethod
+    def compute_ssnr(projections_f, ctfs, small_number=0.01):
+        """Compute spectral signal to noise ratio (SSNR) for each pixel of projections.
+
+        Uses section 2.6:
+
+        Sindelar, C. V., & Grigorieff, N. (2011). An adaptation of the Wiener
+        filter suitable for analyzing images of isolated single particles.
+        Journal of Structural Biology, 176(1), 60–74.
+        http://doi.org/10.1016/j.jsb.2011.06.010
+
+        Parameters
+        ----------
+        projections_f : arr
+            projections in fourier space.
+            Shape (n_projections, n_pix, n_pix)
+        ctfs : arr
+            Shape (n_ctfs, n_pix, n_pix)
+        small_number : float
+            Used for "worse" wiener filter approximation during computations.
+
+        Returns
+        -------
+        ssnr : arr
+            Shape (n_pix, n_pix) the SSNR of each pixel of a projection.
+        """
+        n_pix = len(projections_f[0])
+
+        signal_values = np.sum(ctfs * projections_f, axis=0) / np.sum(
+            ctfs * ctfs + small_number, axis=0
+        )
+
+        ctf_sq_sum = np.zeros(n_pix // 2)
+        ctf_img_sq_sum = np.zeros(n_pix // 2)
+        diff_sq_sum = np.zeros(n_pix // 2)
+        shell_pixels = np.zeros(n_pix // 2)
+
+        for radius in range(n_pix // 2):
+            mask = IterativeRefinement.binary_mask(
+                (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
+            )
+            ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
+            ctf_img_sq_sum[radius] = np.sum(
+                mask * np.sum(ctfs**2 * np.abs(projections_f) ** 2, axis=0)
+            )
+            diff_sq_sum[radius] = np.sum(
+                mask * np.sum(np.abs(projections_f - ctfs * signal_values) ** 2, axis=0)
+            )
+            shell_pixels[radius] = np.sum(mask)
+
+        sigma_rs_2 = ctf_img_sq_sum / ctf_sq_sum
+        sigma_rn_2 = diff_sq_sum / (shell_pixels * (len(projections_f) - 1))
+
+        ssnr_1d = (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
+
+        return IterativeRefinement.expand_1d_to_nd(ssnr_1d, d=2)
 
     @staticmethod
     def compute_fsc(map_3d_f_1, map_3d_f_2):
@@ -654,19 +843,21 @@ class IterativeRefinement:
         return fsc
 
     @staticmethod
-    def binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1):
+    def binary_mask(center, radius, shape, d=3, fill=True, shell_thickness=1):
         """Construct a binary spherical shell mask (variable thickness).
 
         Parameters
         ----------
         center : array-like
-            shape (3,)
+            shape (d,)
             the co-ordinates of the center of the shell.
         radius : float
             the radius in pixels of the shell.
         shape : array-like
-            shape (3,)
-            the shape of the outputted 3D array.
+            shape (d,)
+            the shape of the outputted array.
+        d : int
+            number of dimensions - 2 or 3.
         fill : bool
             Whether to output a shell or a solid sphere.
         shell_thickness : bool
@@ -679,30 +870,43 @@ class IterativeRefinement:
             An array of bools with "True" where the sphere mask is
             present.
         """
-        a, b, c = center
-        nx0, nx1, nx2 = shape
-        x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-        r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
-        mask = r2 <= radius ** 2
+        if d not in (2, 3):
+            raise ValueError(f"Dimension {d} was not 2 or 3")
+        if d == 3:
+            a, b, c = center
+            nx0, nx1, nx2 = shape
+            x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
+            r2 = x0**2 + x1**2 + x2**2
+
+        elif d == 2:
+            a, b = center
+            nx0, nx1 = shape
+            x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
+            r2 = x0**2 + x1**2
+
+        mask = r2 <= radius**2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
             mask = np.logical_xor(mask_outer, mask_inner)
+
         return mask
 
     @staticmethod
-    def expand_1d_to_3d(arr_1d):
-        """Expand 1D array data into spherical shell.
+    def expand_1d_to_nd(arr_1d, d=3):
+        """Expand 1D array data into circular or spherical shell.
 
         Parameters
         ----------
         arr_1d : arr
             Shape (n_pix // 2)
+        d : int
+            number of dimensions - 2 or 3.
 
         Returns
         -------
-        arr_3d : arr
-            Shape (n_pix, n_pix, n_pix)
+        arr_3d or arr_2d : arr
+            Shape (n_pix, n_pix, n_pix) or (n_pix, n_pix)
 
         Note
         ----
@@ -712,12 +916,24 @@ class IterativeRefinement:
         which only goes up to +n_pix/2 -1.
         """
         n_pix = 2 * len(arr_1d)
-        arr_3d = np.zeros((n_pix, n_pix, n_pix))
-        center = (n_pix // 2, n_pix // 2, n_pix // 2)
-        for i in reversed(range(n_pix // 2)):
-            mask = IterativeRefinement.binary_mask_3d(
-                center, i, arr_3d.shape, fill=False
-            )
-            arr_3d = np.where(mask, arr_1d[i], arr_3d)
+        if d == 3:
+            arr_3d = np.zeros((n_pix, n_pix, n_pix))
+            center = (n_pix // 2, n_pix // 2, n_pix // 2)
+            for i in reversed(range(n_pix // 2)):
+                mask = IterativeRefinement.binary_mask(
+                    center, i, arr_3d.shape, 3, fill=False
+                )
+                arr_3d = np.where(mask, arr_1d[i], arr_3d)
 
-        return arr_3d
+            return arr_3d
+        if d == 2:
+            arr_2d = np.zeros((n_pix, n_pix))
+            center = (n_pix // 2, n_pix // 2)
+            for i in reversed(range(n_pix // 2)):
+                mask = IterativeRefinement.binary_mask(
+                    center, i, arr_2d.shape, 2, fill=False
+                )
+                arr_2d = np.where(mask, arr_1d[i], arr_2d)
+
+            return arr_2d
+        raise ValueError(f"Dimension {d} was not 2 or 3")

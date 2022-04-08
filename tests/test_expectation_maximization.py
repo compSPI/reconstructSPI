@@ -2,6 +2,8 @@
 
 import numpy as np
 import pytest
+import torch
+from compSPI.transforms import primal_to_fourier_2D
 
 from reconstructSPI.iterative_refinement import expectation_maximization as em
 
@@ -74,19 +76,55 @@ def test_grid_SO3_uniform(test_ir, n_particles):
     rots = test_ir.grid_SO3_uniform(n_particles)
     assert rots.shape == (n_particles, 3, 3)
 
+    rot = test_ir.grid_SO3_uniform(1)
+    assert rot.shape == (1, 3, 3)
 
-def test_generate_xy_plane(test_ir, n_pix):
-    """Test generation of xy plane."""
-    xy_plane = test_ir.generate_xy_plane(n_pix)
+
+def test_generate_cartesian_grid(test_ir, n_pix):
+    """Test generation of xy plane and xyz cube."""
+    xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     assert xy_plane.shape == (3, n_pix**2)
 
     n_pix_2 = 2
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
 
-    xy_plane = test_ir.generate_xy_plane(n_pix_2)
+    xy_plane = test_ir.generate_cartesian_grid(n_pix_2, 2)
     assert np.allclose(xy_plane, plane_2)
     assert np.isclose(xy_plane.max(), n_pix_2 // 2 - 1)
     assert np.isclose(xy_plane.min(), -n_pix_2 // 2)
+
+    xyz_cube = test_ir.generate_cartesian_grid(n_pix, 3)
+    assert xyz_cube.shape == (3, n_pix**3)
+
+    n_pix_2 = 2
+    cube_2 = np.array(
+        [
+            [-1, -1, -1, -1, 0, 0, 0, 0],
+            [-1, -1, 0, 0, -1, -1, 0, 0],
+            [-1, 0, -1, 0, -1, 0, -1, 0],
+        ]
+    )
+
+    xyz_cube = test_ir.generate_cartesian_grid(n_pix_2, 3)
+    assert np.allclose(xyz_cube, cube_2)
+    assert np.isclose(xyz_cube.max(), n_pix_2 // 2 - 1)
+    assert np.isclose(xyz_cube.min(), -n_pix_2 // 2)
+
+    exceptionThrown = False
+    try:
+        test_ir.generate_cartesian_grid(n_pix, 4)
+    except ValueError:
+        exceptionThrown = True
+    assert exceptionThrown
+
+
+def test_pad_and_rotate_xy_plane(test_ir, n_pix, n_particles):
+    """Test shape after padding and rotating xy plane."""
+    n_rotations = n_particles
+    xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
+    rots = test_ir.grid_SO3_uniform(n_rotations)
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
+    assert xyz_rotated_padded.shape == (n_rotations, 3, 3 * n_pix**2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -113,16 +151,19 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     """
     map_3d = np.ones((n_pix, n_pix, n_pix))
     rots = test_ir.grid_SO3_uniform(n_particles)
-    xy_plane = test_ir.generate_xy_plane(n_pix)
-    slices, xyz_rotated_planes = test_ir.generate_slices(map_3d, xy_plane, rots)
+    xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    slices = test_ir.generate_slices(map_3d, xyz_rotated)
+
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_planes.shape == (n_particles, 3, n_pix**2)
+    assert xyz_rotated_padded.shape == (n_particles, 3, 3 * n_pix**2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
     map_3d_dc[n_pix // 2, n_pix // 2, n_pix // 2] = rand_val
     expected_dc = rand_val * np.ones(len(slices))
-    slices, xyz_rotated_planes = test_ir.generate_slices(map_3d_dc, xy_plane, rots)
+    slices = test_ir.generate_slices(map_3d_dc, xyz_rotated)
     projected_dc = slices[:, n_pix // 2, n_pix // 2]
     assert np.allclose(projected_dc, expected_dc)
 
@@ -139,9 +180,12 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     expected_slice_line_y = np.zeros_like(slices[0])
     expected_slice_line_y[n_pix // 2] = 1
 
-    slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones_xzplane, xy_plane, rot_90deg_about_y
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
+        xy_plane, rot_90deg_about_y, n_pix
     )
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+
+    slices = test_ir.generate_slices(map_plane_ones_xzplane, xyz_rotated)
     omit_idx_artefact = 1
     assert np.allclose(
         slices[0, omit_idx_artefact:, omit_idx_artefact:],
@@ -156,9 +200,13 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     map_plane_ones_xyplane = np.zeros((n_pix, n_pix, n_pix))
     map_plane_ones_xyplane[:, :, n_pix // 2] = 1
     expected_slice = np.ones((n_pix, n_pix))
-    slices, xyz_rotated_planes = test_ir.generate_slices(
-        map_plane_ones_xyplane, xy_plane, rot_180deg_about_z
+
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
+        xy_plane, rot_180deg_about_z, n_pix
     )
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+
+    slices = test_ir.generate_slices(map_plane_ones_xyplane, xyz_rotated)
     assert np.allclose(
         slices[0, omit_idx_artefact:, omit_idx_artefact:],
         expected_slice[omit_idx_artefact:, omit_idx_artefact:],
@@ -239,13 +287,63 @@ def test_apply_wiener_filter(test_ir, n_pix):
 
 
 def test_insert_slice(test_ir, n_pix):
-    """Test insertion of particle slice."""
-    particle_slice = np.ones((n_pix, n_pix))
-    xyz = test_ir.generate_xy_plane(n_pix)
+    """Test insertion of particle slice.
 
-    inserted, count = test_ir.insert_slice(particle_slice, xyz, n_pix)
-    assert inserted.shape == (n_pix, n_pix, n_pix)
-    assert count.shape == (n_pix, n_pix, n_pix)
+    Pull a slice out, put it back in. See if it's the same.
+    """
+    xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
+    map_plane_ones = np.zeros((n_pix, n_pix, n_pix))
+    map_plane_ones[n_pix // 2] = np.ones((n_pix, n_pix))
+
+    rot_90deg_about_y = np.array(
+        [
+            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+        ]
+    )
+
+    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
+        xy_plane, rot_90deg_about_y, n_pix
+    )
+
+    slices = test_ir.generate_slices(
+        map_plane_ones, xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    )
+
+    xyz_voxels = test_ir.generate_cartesian_grid(n_pix, 3)
+
+    inserted, count = test_ir.insert_slice(slices[0], xyz_rotated_padded[0], xyz_voxels)
+
+    omit_idx_artefact = 1
+
+    assert np.allclose(
+        inserted[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
+        map_plane_ones[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
+    )
+    assert np.allclose(
+        count[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
+        map_plane_ones[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
+    )
+
+
+def test_insert_slice_v(test_ir, n_pix):
+    """Test whether vectorized insert_slice produces the right shapes."""
+    n_slices = 5
+    xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
+    z_tol = np.array(
+        [
+            [0, 0, 0.05],
+        ]
+    ).T
+    xy_plane_tol = np.concatenate(
+        (xy_plane + z_tol, xy_plane, xy_plane - z_tol), axis=1
+    )
+    test_slices = np.ones((n_slices, n_pix, n_pix))
+    xy_planes_tol = np.tile(np.expand_dims(xy_plane_tol, axis=0), (n_slices, 1, 1))
+    xyz = test_ir.generate_cartesian_grid(n_pix, 3)
+
+    inserts, counts = test_ir.insert_slice_v(test_slices, xy_planes_tol, xyz)
+    assert inserts.shape == (n_slices, n_pix, n_pix, n_pix)
+    assert counts.shape == (n_slices, n_pix, n_pix, n_pix)
 
 
 def test_compute_fsc(test_ir, n_pix):
@@ -263,8 +361,8 @@ def test_compute_fsc(test_ir, n_pix):
 
 
 
-def test_binary_mask_3d(test_ir):
-    """Test binary_mask_3d.
+def test_binary_mask(test_ir):
+    """Test binary_mask in 3d and 2d.
 
     Tests the limit of infinite n_pix. Use high n_pix so good approx.
     1. Sums shell through an axis, then converts to circle,
@@ -276,14 +374,15 @@ def test_binary_mask_3d(test_ir):
 
     3. Make filled sphere of sizes r and r/2 and check ratio of volume.
     """
+    # 3D tests
     n_pix = 512
 
     center = (n_pix // 2, n_pix // 2, n_pix // 2)
     radius = n_pix // 2
     shape = (n_pix, n_pix, n_pix)
     for fill in [True, False]:
-        mask = test_ir.binary_mask_3d(
-            center, radius, shape, fill=fill, shell_thickness=1
+        mask = test_ir.binary_mask(
+            center, radius, shape, 3, fill=fill, shell_thickness=1
         )
 
         for axis in [0, 1, 2]:
@@ -291,18 +390,18 @@ def test_binary_mask_3d(test_ir):
             circle_to_square_ratio = circle.mean()
             assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
 
-    mask = test_ir.binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1)
+    mask = test_ir.binary_mask(center, radius, shape, 3, fill=True, shell_thickness=1)
     circle = mask[n_pix // 2]
     circle_to_square_ratio = circle.mean()
     assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
 
     r_half = radius / 2
     for shell_thickness in [1, 2]:
-        mask_r = test_ir.binary_mask_3d(
-            center, radius, shape, fill=False, shell_thickness=1
+        mask_r = test_ir.binary_mask(
+            center, radius, shape, 3, fill=False, shell_thickness=1
         )
-        mask_r_half = test_ir.binary_mask_3d(
-            center, r_half, shape, fill=False, shell_thickness=1
+        mask_r_half = test_ir.binary_mask(
+            center, r_half, shape, 3, fill=False, shell_thickness=1
         )
         perimeter_ratio = mask_r[n_pix // 2].sum() / mask_r_half[n_pix // 2].sum()
         assert np.isclose(2, perimeter_ratio, atol=0.1)
@@ -318,19 +417,60 @@ def test_binary_mask_3d(test_ir):
         surface_area_ratio_analytic = (radius / r_half) ** 2
         assert np.isclose(surface_area_ratio, surface_area_ratio_analytic, atol=0.1)
 
-    mask_r = test_ir.binary_mask_3d(center, radius, shape, fill=True, shell_thickness=1)
-    mask_r_half = test_ir.binary_mask_3d(
-        center, r_half, shape, fill=True, shell_thickness=1
+    mask_r = test_ir.binary_mask(center, radius, shape, 3, fill=True, shell_thickness=1)
+    mask_r_half = test_ir.binary_mask(
+        center, r_half, shape, 3, fill=True, shell_thickness=1
     )
     volume_ratio = mask_r.sum() / mask_r_half.sum()
     volume_ratio_analytic = (radius / r_half) ** 3
     assert np.isclose(volume_ratio, volume_ratio_analytic, atol=0.005)
 
+    # 2D tests
+    center = (n_pix // 2, n_pix // 2)
+    radius = n_pix // 2
+    shape = (n_pix, n_pix)
 
-def test_expand_1d_to_3d(test_ir, n_pix):
-    """Test expansion of 1D array into spherical shell."""
+    mask = test_ir.binary_mask(center, radius, shape, 2, fill=True, shell_thickness=1)
+
+    circle = mask > 0
+    circle_to_square_ratio = circle.mean()
+    assert np.isclose(circle_to_square_ratio, np.pi / 4, atol=1e-3)
+
+    r_half = radius / 2
+    for shell_thickness in [1, 2]:
+        mask_r = test_ir.binary_mask(
+            center, radius, shape, 2, fill=False, shell_thickness=1
+        )
+        mask_r_half = test_ir.binary_mask(
+            center, r_half, shape, 2, fill=False, shell_thickness=1
+        )
+        perimeter_ratio = mask_r.sum() / mask_r_half.sum()
+        assert np.isclose(2, perimeter_ratio, atol=0.1)
+        if shell_thickness == 1:
+            assert np.isclose(mask_r.sum() / (2 * np.pi * radius), 1, atol=0.1)
+            assert np.isclose(mask_r_half.sum() / (2 * np.pi * r_half), 1, atol=0.1)
+
+    mask_r = test_ir.binary_mask(center, radius, shape, 2, fill=True, shell_thickness=1)
+    mask_r_half = test_ir.binary_mask(
+        center, r_half, shape, 2, fill=True, shell_thickness=1
+    )
+    area_ratio = mask_r.sum() / mask_r_half.sum()
+    area_ratio_analytic = (radius / r_half) ** 2
+    assert np.isclose(area_ratio, area_ratio_analytic, atol=0.005)
+
+    # ND test
+    exceptionThrown = False
+    try:
+        test_ir.binary_mask(center, radius, shape, 4)
+    except ValueError:
+        exceptionThrown = True
+    assert exceptionThrown
+
+
+def test_expand_1d_to_nd(test_ir, n_pix):
+    """Test expansion of 1D array into spherical or circular shell."""
     for arr_1d in [np.ones(n_pix // 2), np.arange(n_pix // 2)]:
-        arr_3d = test_ir.expand_1d_to_3d(arr_1d)
+        arr_3d = test_ir.expand_1d_to_nd(arr_1d, d=3)
 
         assert arr_3d.shape == (n_pix, n_pix, n_pix)
         assert np.allclose(arr_1d, arr_3d[n_pix // 2 :, n_pix // 2, n_pix // 2])
@@ -352,6 +492,56 @@ def test_expand_1d_to_3d(test_ir, n_pix):
         assert np.allclose(
             arr_1d_rev, arr_3d[n_pix // 2, n_pix // 2, 1 : n_pix // 2 + 1]
         )
+
+        arr_2d = test_ir.expand_1d_to_nd(arr_1d, d=2)
+
+        assert arr_2d.shape == (n_pix, n_pix)
+        assert np.allclose(arr_1d, arr_2d[n_pix // 2 :, n_pix // 2])
+        assert np.allclose(arr_1d, arr_2d[n_pix // 2, n_pix // 2 :])
+
+        zeros_1d = np.zeros((n_pix))
+        assert np.allclose(zeros_1d, arr_2d[0, :])
+        assert np.allclose(zeros_1d, arr_2d[:, 0])
+
+        arr_1d_rev = arr_1d[::-1]
+        assert np.allclose(arr_1d_rev, arr_2d[1 : n_pix // 2 + 1, n_pix // 2])
+        assert np.allclose(arr_1d_rev, arr_2d[n_pix // 2, 1 : n_pix // 2 + 1])
+
+        exceptionThrown = False
+        try:
+            arr_1d = np.arange(n_pix // 2)
+            test_ir.expand_1d_to_nd(arr_1d, d=4)
+        except ValueError:
+            exceptionThrown = True
+        assert exceptionThrown
+
+
+def test_compute_ssnr(test_ir, n_pix, n_particles):
+    """Test the shape of compute_ssnr."""
+    particles_f = (
+        primal_to_fourier_2D(
+            torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
+        )
+        .numpy()
+        .reshape((n_particles, n_pix, n_pix))
+    )
+    ctfs = test_ir.build_ctf_array()
+    ssnrs = test_ir.compute_ssnr(particles_f, ctfs)
+    assert ssnrs.shape == (n_pix, n_pix)
+
+
+def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
+    """Test the shape of compute_wiener_small_numbers."""
+    particles_f = (
+        primal_to_fourier_2D(
+            torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
+        )
+        .numpy()
+        .reshape((n_particles, n_pix, n_pix))
+    )
+    ctfs = test_ir.build_ctf_array()
+    small_numbers = test_ir.get_wiener_small_numbers(particles_f, ctfs)
+    assert small_numbers.shape == (n_pix, n_pix)
 
 
 def test_iterative_refinement(test_ir, n_pix):
