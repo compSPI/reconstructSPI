@@ -828,7 +828,7 @@ class IterativeRefinement:
         return IterativeRefinement.expand_1d_to_nd(ssnr_1d, d=2)
 
     @staticmethod
-    def compute_fsc(map_3d_f_1, map_3d_f_2):
+    def compute_fsc(map_3d_f_1, map_3d_f_2, small_number = 0.01):
         """Compute the Fourier shell correlation.
 
                 Estimate noise from half maps.
@@ -839,6 +839,8 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
         map_3d_f_2 : arr
             Shape (n_pix, n_pix, n_pix)
+        small_number : float
+            Used to avoid NaN values.
 
         Returns
         -------
@@ -865,7 +867,7 @@ class IterativeRefinement:
             shell_b = map_3d_f_2[shell_mask]
 
             complex_cross_product = (shell_a * np.conjugate(shell_b)).sum()
-            norm_product = np.linalg.norm(shell_a) * np.linalg.norm(shell_b)
+            norm_product = np.linalg.norm(shell_a) * np.linalg.norm(shell_b) + small_number
 
             fsc[rad - 1] = complex_cross_product / norm_product
 
