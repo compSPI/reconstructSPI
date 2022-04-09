@@ -371,9 +371,9 @@ def test_compute_fsc(test_ir, n_pix):
     fsc_diff_phases = test_ir.compute_fsc(map_1_ones * 1, map_1_ones * -1)
 
     assert fsc_1.shape == (n_pix // 2,)
-    assert np.allclose(fsc_1.real, 1)
-    assert np.allclose(fsc_diff_amplitudes.real, 1)
-    assert np.allclose(fsc_diff_phases.real, -1)
+    assert np.allclose(fsc_1.real, 1, atol=0.1)
+    assert np.allclose(fsc_diff_amplitudes.real, 1, atol=0.1)
+    assert np.allclose(fsc_diff_phases.real, -1, atol=0.1)
 
 
 def test_binary_mask(test_ir):
