@@ -191,8 +191,8 @@ class IterativeRefinement:
             map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
             map_3d_f_norm_1 = np.zeros_like(half_map_3d_f_1)
             map_3d_f_norm_2 = np.zeros_like(half_map_3d_f_2)
-            counts_3d_updated_1 = np.zeros_like(half_map_3d_r_1).astype(np.float)
-            counts_3d_updated_2 = np.zeros_like(half_map_3d_r_2).astype(np.float)
+            counts_3d_updated_1 = np.zeros_like(half_map_3d_r_1).astype(np.float32)
+            counts_3d_updated_2 = np.zeros_like(half_map_3d_r_2).astype(np.float32)
 
             for particle_idx in range(particles_f_1.shape[0]):
                 ctf_1 = ctfs_1[particle_idx]
@@ -253,7 +253,7 @@ class IterativeRefinement:
                     )
                     counts_3d_updated_1 += np.sum(
                         count_3d_r + count_3d_i, axis=0
-                    ).astype(np.float)
+                    ).astype(np.float32)
 
                 for one_slice_idx in range(len(bayes_factors_2)):
                     xyz_planes = xyz_rotated_padded[one_slice_idx]
@@ -268,7 +268,7 @@ class IterativeRefinement:
                     )
                     counts_3d_updated_2 += np.sum(
                         count_3d_r + count_3d_i, axis=0
-                    ).astype(np.float)
+                    ).astype(np.float32)
 
                 map_3d_f_norm_1 = IterativeRefinement.normalize_map(
                     map_3d_f_updated_1, counts_3d_updated_1, count_norm_const
