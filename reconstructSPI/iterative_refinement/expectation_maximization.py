@@ -169,8 +169,8 @@ class IterativeRefinement:
             signal_var=self.signal_var,
         )
 
-        for _ in range(self.max_itr):
-
+        for iteration in range(self.max_itr):
+            logging.info(f"Iteration{iteration}")
             half_map_3d_f_1 = (
                 primal_to_fourier_3D(
                     torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
@@ -205,7 +205,9 @@ class IterativeRefinement:
             counts_3d_updated_1 = np.zeros(map_shape)
             counts_3d_updated_2 = np.zeros(map_shape)
 
+            em_loss_batch_1, em_loss_batch_2 = 0, 0
             for particle_idx in range(particles_f_1.shape[0]):
+                logging.info(f"Particle {particle_idx}")
                 ctf_1 = ctfs_1[particle_idx]
                 ctf_2 = ctfs_2[particle_idx]
 
@@ -223,11 +225,11 @@ class IterativeRefinement:
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_1[particle_idx], slices_conv_ctfs_1, sigma_noise
                 )
-                print(
-                    "log z_norm_const_1={}, em_loss_1={}".format(
-                        z_norm_const_1, em_loss_1
-                    )
+                em_loss_batch_1 += em_loss_1
+                logging.info(
+                    f"log z_norm_const_1={z_norm_const_1}, em_loss_1={em_loss_1}"
                 )
+
                 (
                     bayes_factors_2,
                     z_norm_const_2,
@@ -235,10 +237,9 @@ class IterativeRefinement:
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_2[particle_idx], slices_conv_ctfs_2, sigma_noise
                 )
-                print(
-                    "log z_norm_const_2={}, em_loss_2={}".format(
-                        z_norm_const_2, em_loss_2
-                    )
+                em_loss_batch_2 += em_loss_2
+                logging.info(
+                    f"log z_norm_const_3={z_norm_const_2}, em_loss_3={em_loss_2}"
                 )
 
                 particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
@@ -247,9 +248,9 @@ class IterativeRefinement:
                 particle_f_deconv_2 = IterativeRefinement.apply_wiener_filter(
                     particles_f_2, ctf_1, wiener_small_numbers_2
                 )
+
                 # multiply by bayes weights
-                # check sum
-                # check type
+                logging.info("Inserting slices")
                 for one_slice_idx in range(len(bayes_factors_1)):
                     xyz_planes = xyz_rotated_padded[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
@@ -258,10 +259,10 @@ class IterativeRefinement:
                     inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
                         particle_f_deconv_1.imag, xyz_planes, xyz_voxels
                     )
-                    map_3d_f_updated_1 += np.sum(
+                    map_3d_f_updated_1 += bayes_factors_1[one_slice_idx] * np.sum(
                         inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
                     )
-                    counts_3d_updated_1 += np.sum(
+                    counts_3d_updated_1 += bayes_factors_1[one_slice_idx] * np.sum(
                         count_3d_r + count_3d_i, axis=0
                     ).astype(np.float32)
 
@@ -273,13 +274,14 @@ class IterativeRefinement:
                     inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
                         particle_f_deconv_2.imag, xyz_planes, xyz_voxels
                     )
-                    map_3d_f_updated_2 += np.sum(
+                    map_3d_f_updated_2 += bayes_factors_2[one_slice_idx] * np.sum(
                         inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
                     )
-                    counts_3d_updated_2 += np.sum(
+                    counts_3d_updated_2 += bayes_factors_2[one_slice_idx] * np.sum(
                         count_3d_r + count_3d_i, axis=0
                     ).astype(np.float32)
 
+                logging.info("Normalizing maps")
                 map_3d_f_norm_1 = IterativeRefinement.normalize_map(
                     map_3d_f_updated_1, counts_3d_updated_1, count_norm_const
                 )

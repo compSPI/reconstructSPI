@@ -11,8 +11,8 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def n_pix():
     """Get test pixel count for consistency."""
-    n_pix_half_max = 16
-    n_pix_half_min = 8
+    n_pix_half_max = 8
+    n_pix_half_min = 4
     return np.random.randint(n_pix_half_min, n_pix_half_max + 1) * 2
 
 
@@ -36,17 +36,19 @@ def rand_defocus(n_particles):
 
 @pytest.fixture
 def test_ir(n_pix, n_particles, rand_defocus, rand_angle_list):
-    """Instantiate IterativeRefinement class for testing."""
-    pixels = n_pix
+    """Instantiate IterativeRefinement class for testing.
+
+    Use dynamic pixel size to avoid CTF aliasing. 160 A box length.
+    """
     ctf_info = {
         "amplitude_contrast": 0.1,
         "b_factor": 0.0,
         "batch_size": n_particles,
         "cs": 2.7,
-        "ctf_size": pixels,
+        "ctf_size": n_pix,
         "kv": 300,
-        "pixel_size": 5,
-        "side_len": pixels,
+        "pixel_size": 160 / n_pix,
+        "side_len": n_pix,
         "value_nyquist": 0.1,
         "ctf_params": {
             "defocus_u": rand_defocus,
