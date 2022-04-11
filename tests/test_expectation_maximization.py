@@ -99,7 +99,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_cartesian_grid(test_ir, n_pix):
     """Test generation of xy plane and xyz cube."""
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
-    assert xy_plane.shape == (3, n_pix**2)
+    assert xy_plane.shape == (3, n_pix ** 2)
 
     n_pix_2 = 2
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
@@ -110,7 +110,7 @@ def test_generate_cartesian_grid(test_ir, n_pix):
     assert np.isclose(xy_plane.min(), -n_pix_2 // 2)
 
     xyz_cube = test_ir.generate_cartesian_grid(n_pix, 3)
-    assert xyz_cube.shape == (3, n_pix**3)
+    assert xyz_cube.shape == (3, n_pix ** 3)
 
     n_pix_2 = 2
     cube_2 = np.array(
@@ -140,7 +140,7 @@ def test_pad_and_rotate_xy_plane(test_ir, n_pix, n_particles):
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     rots = test_ir.grid_SO3_uniform(n_rotations)
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
-    assert xyz_rotated_padded.shape == (n_rotations, 3, 3 * n_pix**2)
+    assert xyz_rotated_padded.shape == (n_rotations, 3, 3 * n_pix ** 2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -169,11 +169,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     slices = test_ir.generate_slices(map_3d, xyz_rotated)
 
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_padded.shape == (n_particles, 3, 3 * n_pix**2)
+    assert xyz_rotated_padded.shape == (n_particles, 3, 3 * n_pix ** 2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
@@ -199,7 +199,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
         xy_plane, rot_90deg_about_y, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
 
     slices = test_ir.generate_slices(map_plane_ones_xzplane, xyz_rotated)
     omit_idx_artefact = 1
@@ -220,7 +220,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
         xy_plane, rot_180deg_about_z, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
 
     slices = test_ir.generate_slices(map_plane_ones_xyplane, xyz_rotated)
     assert np.allclose(
@@ -244,11 +244,11 @@ def test_compute_bayesian_weights(test_ir):
 
     Compares "perfect alignment" against analytical forms.
     Perfect alignment has all noise residueals zero and all bayesian_weights equal.
-    Small sigma makes this test fail because of numerical impercision
+    Small sigma_noise makes this test fail because of numerical impercision
     in offset_safe + scale*particle_norm, which should be zero.
     Also important to keep the tolerance of the em_loss test low.
     """
-    sigma = 1 + np.random.normal(0, 1) ** 2
+    sigma_noise = 1 + np.random.normal(0, 1) ** 2
 
     n_pix = np.random.randint(low=10, high=100)
     particle = np.ones((n_pix, n_pix)).astype(np.complex64)
@@ -257,7 +257,7 @@ def test_compute_bayesian_weights(test_ir):
     perfect_alignment_slices = np.ones((n_particles, n_pix, n_pix)).astype(np.complex64)
 
     bayesian_weights, z_norm_const, em_loss = test_ir.compute_bayesian_weights(
-        particle, perfect_alignment_slices, sigma
+        particle, perfect_alignment_slices, sigma_noise
     )
     assert bayesian_weights.shape == (n_particles,)
     assert np.isclose(bayesian_weights.std(), 0)
@@ -276,14 +276,14 @@ def test_compute_bayesian_weights(test_ir):
         bayesian_weights_low,
         z_norm_const_low,
         em_loss_low,
-    ) = test_ir.compute_bayesian_weights(particle, slices_scale, sigma=low_temp)
+    ) = test_ir.compute_bayesian_weights(particle, slices_scale, sigma_noise=low_temp)
     (
         bayesian_weights_med,
         z_norm_const_med,
         em_loss_med,
-    ) = test_ir.compute_bayesian_weights(particle, slices_scale, sigma=med_temp)
+    ) = test_ir.compute_bayesian_weights(particle, slices_scale, sigma_noise=med_temp)
     bayesian_weights_hi, z_norm_const_hi, em_loss_hi = test_ir.compute_bayesian_weights(
-        particle, slices_scale, sigma=hi_temp
+        particle, slices_scale, sigma_noise=hi_temp
     )
 
     assert np.alltrue(bayesian_weights_low <= bayesian_weights_med)
@@ -322,7 +322,7 @@ def test_insert_slice(test_ir, n_pix):
     )
 
     slices = test_ir.generate_slices(
-        map_plane_ones, xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+        map_plane_ones, xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     )
 
     xyz_voxels = test_ir.generate_cartesian_grid(n_pix, 3)
@@ -629,7 +629,7 @@ def test_iterative_refinement(test_ir, n_pix):
     xyz_rotated_padded = em.IterativeRefinement.pad_and_rotate_xy_planes(
         xy_plane, rots, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     slices = em.IterativeRefinement.generate_slices(map_3d, xyz_rotated)
     particles = slices.astype(np.float64)
     particles_noise = np.random.normal(particles, scale=0.1)
