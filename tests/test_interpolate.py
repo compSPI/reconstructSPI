@@ -2,10 +2,10 @@
 
 import numpy as np
 
-from reconstructSPI.iterative_refinement import interpolate
 from reconstructSPI.iterative_refinement.expectation_maximization import (
     IterativeRefinement,
 )
+from reconstructSPI.iterative_refinement.interpolate import diff, interp_vec
 
 
 def test_diff():
@@ -19,39 +19,32 @@ def test_diff():
     n_pix = 16
     xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, d=2)
 
-    r0, r1, dd = interpolate.diff(xy0_plane.T)
-    assert np.allclose(dd[0], np.ones(3))
-    assert np.allclose(dd[1:], np.zeros_like(dd[1:]))
-    assert np.allclose(r0[0], xy0_plane[0])
-    assert np.allclose(r0[1], xy0_plane[1])
+    n_pix2 = n_pix ** 2
+    r0, r1, dd = diff(xy0_plane.T)
+    assert np.allclose(dd[0], np.ones(n_pix2))
+    assert np.allclose(dd[1:], np.zeros((8 - 1, n_pix2)))
+    assert np.allclose(r0.T, xy0_plane)
 
-    assert np.allclose(r0[-1], np.zeros_like(r0[-1]))
     rot_90deg_xyplane = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]])
 
     xy0_rot = rot_90deg_xyplane.dot(xy0_plane)
-    r0, r1, dd = interpolate.diff(xy0_rot.T)
+    r0, r1, dd = diff(xy0_rot.T)
 
-    assert np.allclose(dd[0], np.ones(3))
-    assert np.allclose(dd[1:], np.zeros_like(dd[1:]))
-    assert np.allclose(r0[0], xy0_plane[1])
-    assert np.allclose(r0[1], -xy0_plane[0])
+    assert np.allclose(dd[0], np.ones(n_pix2))
+    assert np.allclose(dd[1:], np.zeros((8 - 1, n_pix2)))
+    assert np.allclose(r0[:, 0], xy0_plane[1, :])
+    assert np.allclose(r0[:, 1], -xy0_plane[0, :])
 
+    # any rot
     rad = np.random.uniform(low=-np.pi, high=np.pi)
     c = np.cos(rad)
     s = np.sin(rad)
-    rot_xyplane = np.array([[c, s, 0], [-s, c, 0], [0, 0, 1]])
-    xy0_rot = rot_xyplane.dot(xy0_plane)
-    r0, r1, dd = interpolate.diff(xy0_rot.T)
-    assert np.allclose(r0[-1], np.zeros_like(r0[-1]))
-    assert np.isclose(dd.sum(), 3)
-    assert np.allclose(r0 + 1, r1)
-
-    rot_xzplane = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
-    xy0_rot = rot_xzplane.dot(xy0_plane)
-    r0, r1, dd = interpolate.diff(xy0_rot.T)
+    rot_45deg_xyplane = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
+    xy0_rot = rot_45deg_xyplane.dot(xy0_plane)
+    r0, r1, dd = diff(xy0_rot.T)
     if not np.isclose(rad, 0):
-        assert not np.allclose(r0[-1], np.zeros_like(r0[-1]))
-    assert np.isclose(dd.sum(), 3)
+        assert not np.allclose(r0.T, xy0_plane)
+    assert np.isclose(dd.sum(0), np.ones(n_pix2))
     assert np.allclose(r0 + 1, r1)
 
 
@@ -70,7 +63,7 @@ def test_interp_vec():
     """
     n_pix = 32
     xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, d=2)
-    r0, r1, dd = interpolate.diff(xy0_plane.T)
+    r0, r1, dd = diff(xy0_plane.T)
     center = (n_pix // 2, n_pix // 2, n_pix // 2)
     radius = n_pix // 2 // 2
     shape = (n_pix, n_pix, n_pix)
@@ -79,9 +72,7 @@ def test_interp_vec():
     )
     circle = (map_3d.sum(0) > 0).astype(float)
 
-    F_3d_interp_slice, count_3d_interp_slice = interpolate.interp_vec(
-        circle, r0, r1, dd, n_pix
-    )
+    F_3d_interp_slice, count_3d_interp_slice = interp_vec(circle, r0, r1, dd, n_pix)
     assert np.allclose(circle, F_3d_interp_slice.sum(2))
     assert np.allclose(F_3d_interp_slice.sum(0), F_3d_interp_slice.sum(1))
 
@@ -90,10 +81,8 @@ def test_interp_vec():
     s = np.sin(rad)
     rot_xyplane = np.array([[c, s, 0], [-s, c, 0], [0, 0, 1]])
     xy0_rot = rot_xyplane.dot(xy0_plane)
-    r0, r1, dd = interpolate.diff(xy0_rot.T)
-    F_3d_interp_slice, count_3d_interp_slice = interpolate.interp_vec(
-        circle, r0, r1, dd, n_pix
-    )
+    r0, r1, dd = diff(xy0_rot.T)
+    F_3d_interp_slice, count_3d_interp_slice = interp_vec(circle, r0, r1, dd, n_pix)
     interpolated_circle = F_3d_interp_slice.sum(2) > 0
     thresh = 0.9
     assert np.isclose(circle, interpolated_circle).mean() > thresh
