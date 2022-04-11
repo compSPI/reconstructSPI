@@ -50,11 +50,23 @@ class IterativeRefinement:
             http://doi.org/10.1016/S0076-6879(10)82011-7
     """
 
-    def __init__(self, map_3d_init, particles, ctf_info, max_itr=7):
+    def __init__(
+        self,
+        map_3d_init,
+        particles,
+        ctf_info,
+        max_itr=7,
+        signal_var=0.1,
+        n_rots=7,
+        sigma_noise=1,
+    ):
         self.map_3d_init = map_3d_init
         self.particles = particles
         self.ctf_info = ctf_info
         self.max_itr = max_itr
+        self.signal_var = signal_var
+        self.n_rots = n_rots
+        self.sigma_noise = sigma_noise
         self.insert_slice_vectorized = np.vectorize(
             IterativeRefinement.insert_slice,
             excluded=[
@@ -114,7 +126,8 @@ class IterativeRefinement:
             .reshape((n_batch_2, n_pix, n_pix))
         )
 
-        n_rotations = len(self.particles)
+        n_rotations = n_batch_1 + n_batch_2
+        self.particles = self.particles[:n_rotations]
 
         half_map_3d_r_1, half_map_3d_r_2 = (
             self.map_3d_init.copy(),
@@ -142,15 +155,8 @@ class IterativeRefinement:
 
         xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
 
-        wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
-            particles_f_1, ctfs_1
-        )
-        wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(
-            particles_f_2, ctfs_2
-        )
-
-        for _ in range(self.max_itr):
-
+        for iteration in range(self.max_itr):
+            logging.info(f"Iteration{iteration}")
             half_map_3d_f_1 = (
                 primal_to_fourier_3D(
                     torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
@@ -167,7 +173,7 @@ class IterativeRefinement:
                 .reshape(map_shape)
             )
 
-            rots = IterativeRefinement.grid_SO3_uniform(n_rotations)
+            rots = IterativeRefinement.grid_SO3_uniform(self.n_rots)
             xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
             xyz_rotated_padded = IterativeRefinement.pad_and_rotate_xy_planes(
                 xy0_plane, rots, n_pix
@@ -175,19 +181,68 @@ class IterativeRefinement:
             xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
 
             slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
-
             slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
+
+            signal_var_1 = slices_1.var(axis=(1, 2))
+            signal_var_2 = slices_2.var(axis=(1, 2))
 
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
             map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
             map_3d_f_norm_1 = np.zeros_like(half_map_3d_f_1)
             map_3d_f_norm_2 = np.zeros_like(half_map_3d_f_2)
-            counts_3d_updated_1 = np.zeros_like(half_map_3d_r_1)
-            counts_3d_updated_2 = np.zeros_like(half_map_3d_r_2)
+            counts_3d_updated_1 = np.zeros(map_shape)
+            counts_3d_updated_2 = np.zeros(map_shape)
 
+            em_loss_batch_1, em_loss_batch_2 = 0.0, 0.0
             for particle_idx in range(particles_f_1.shape[0]):
+                logging.info(f"Particle {particle_idx}")
                 ctf_1 = ctfs_1[particle_idx]
                 ctf_2 = ctfs_2[particle_idx]
+
+                ctf_vectorized = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
+
+                slices_conv_ctfs_1 = ctf_vectorized(slices_1, ctf_1)
+                slices_conv_ctfs_2 = ctf_vectorized(slices_2, ctf_2)
+
+                # optimize estimate in em iterations
+                sigma_noise = self.sigma_noise
+
+                (
+                    bayes_factors_1,
+                    z_norm_const_1,
+                    em_loss_1,
+                ) = IterativeRefinement.compute_bayesian_weights(
+                    particles_f_1[particle_idx], slices_conv_ctfs_1, sigma_noise
+                )
+
+                em_loss_batch_1 += em_loss_1
+                logging.info(
+                    f"log z_norm_const_1={z_norm_const_1}, em_loss_1={em_loss_1}"
+                )
+
+                (
+                    bayes_factors_2,
+                    z_norm_const_2,
+                    em_loss_2,
+                ) = IterativeRefinement.compute_bayesian_weights(
+                    particles_f_2[particle_idx], slices_conv_ctfs_2, sigma_noise
+                )
+
+                em_loss_batch_2 += em_loss_2
+                logging.info(
+                    f"log z_norm_const_3={z_norm_const_2}, em_loss_3={em_loss_2}"
+                )
+
+                wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
+                    method="white",
+                    sigma_noise=sigma_noise,
+                    signal_var=(signal_var_1 * bayes_factors_1).sum(),
+                )
+                wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(
+                    method="white",
+                    sigma_noise=sigma_noise,
+                    signal_var=(signal_var_2 * bayes_factors_2).sum(),
+                )
 
                 particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
                     particles_f_1, ctf_1, wiener_small_numbers_1
@@ -196,39 +251,8 @@ class IterativeRefinement:
                     particles_f_2, ctf_1, wiener_small_numbers_2
                 )
 
-                ctf_vectorized = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
-
-                slices_conv_ctfs_1 = ctf_vectorized(slices_1, ctf_1)
-                slices_conv_ctfs_2 = ctf_vectorized(slices_2, ctf_2)
-
-                sigma = 1
-
-                (
-                    bayes_factors_1,
-                    z_norm_const_1,
-                    em_loss_1,
-                ) = IterativeRefinement.compute_bayesian_weights(
-                    particles_f_1[particle_idx], slices_conv_ctfs_1, sigma
-                )
-                print(
-                    "log z_norm_const_1={}, em_loss_1={}".format(
-                        z_norm_const_1, em_loss_1
-                    )
-                )
-                (
-                    bayes_factors_2,
-                    z_norm_const_2,
-                    em_loss_2,
-                ) = IterativeRefinement.compute_bayesian_weights(
-                    particles_f_2[particle_idx], slices_conv_ctfs_2, sigma
-                )
-                print(
-                    "log z_norm_const_2={}, em_loss_2={}".format(
-                        z_norm_const_2, em_loss_2
-                    )
-                )
-
-                for one_slice_idx in range(len(bayes_factors_1)):
+                logging.info("Inserting slices")
+                for one_slice_idx in range(bayes_factors_1.shape[0]):
                     xyz_planes = xyz_rotated_padded[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
                         particle_f_deconv_1.real, xyz_planes, xyz_voxels
@@ -236,12 +260,14 @@ class IterativeRefinement:
                     inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
                         particle_f_deconv_1.imag, xyz_planes, xyz_voxels
                     )
-                    map_3d_f_updated_1 += np.sum(
+                    map_3d_f_updated_1 += bayes_factors_1[one_slice_idx] * np.sum(
                         inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
                     )
-                    counts_3d_updated_1 += np.sum(count_3d_r + count_3d_i, axis=0)
+                    counts_3d_updated_1 += bayes_factors_1[one_slice_idx] * np.sum(
+                        count_3d_r + count_3d_i, axis=0
+                    ).astype(np.float32)
 
-                for one_slice_idx in range(len(bayes_factors_2)):
+                for one_slice_idx in range(bayes_factors_2.shape[0]):
                     xyz_planes = xyz_rotated_padded[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
                         particle_f_deconv_2.real, xyz_planes, xyz_voxels
@@ -249,11 +275,14 @@ class IterativeRefinement:
                     inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
                         particle_f_deconv_2.imag, xyz_planes, xyz_voxels
                     )
-                    map_3d_f_updated_2 += np.sum(
+                    map_3d_f_updated_2 += bayes_factors_2[one_slice_idx] * np.sum(
                         inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
                     )
-                    counts_3d_updated_2 += np.sum(count_3d_r + count_3d_i, axis=0)
+                    counts_3d_updated_2 += bayes_factors_2[one_slice_idx] * np.sum(
+                        count_3d_r + count_3d_i, axis=0
+                    ).astype(np.float32)
 
+                logging.info("Normalizing maps")
                 map_3d_f_norm_1 = IterativeRefinement.normalize_map(
                     map_3d_f_updated_1, counts_3d_updated_1, count_norm_const
                 )
@@ -526,7 +555,7 @@ class IterativeRefinement:
         """
         n_rotations = len(xyz_rotated)
         n_pix = len(map_3d_f)
-        slices = np.empty((n_rotations, n_pix, n_pix), dtype=float)
+        slices = np.empty((n_rotations, n_pix, n_pix), dtype=np.complex64)
         for i in range(n_rotations):
             slices[i] = map_coordinates(
                 map_3d_f.real,
@@ -661,12 +690,11 @@ class IterativeRefinement:
             CTF parameters for particle.
             Shape (n_pix,n_pix)
         """
-        # vectorize and have shape match
         projection_f_conv_ctf = ctf * particle_slice
         return projection_f_conv_ctf
 
     @staticmethod
-    def compute_bayesian_weights(particle, slices, sigma):
+    def compute_bayesian_weights(particle, slices, sigma_noise):
         """Compute Bayesian weights of particle to slice.
 
         Assumes a Gaussian white noise model.
@@ -677,7 +705,7 @@ class IterativeRefinement:
             Shape (n_pix,n_pix)
         slices : complex64 arr
             Shape (n_slices, n_pix, n_pix)
-        sigma : float
+        sigma_noise : float
           Gaussian white noise std
 
         Returns
@@ -707,7 +735,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma**2) ** -1)
+        scale = -((2 * sigma_noise**2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -738,7 +766,11 @@ class IterativeRefinement:
         return projection_wfilter_f
 
     @staticmethod
-    def get_wiener_small_numbers(particles_f, ctfs, small_number=0.01, fill_zeros=0.01):
+    def get_wiener_small_numbers(
+        method,
+        fill_zeros=0.01,
+        **kwargs,
+    ):
         """Compute wiener small number array.
 
         Parameters
@@ -746,86 +778,120 @@ class IterativeRefinement:
         particles_f : arr
             Shape (n_particles, n_pix, n_pix)
             Fourier space particle projections.
-        ctfs : arr
-            Shape (n_particles, n_pix, n_pix)
-            Ctfs of particles
-        small_number : float
-            Small number for approximating wiener filter effects
         fill_zeros : float
             Small number used in place of zeros that come from small number
             computations.
 
         Returns
         -------
-        wiener_small_numbers : arr
-            Shape (n_pix, n_pix)
-            Small numbers to be used in wiener filtering each pixel of projections
+        wiener_small_numbers : arr, Shape (n_pix, n_pix); or float
+            Small numbers for wiener filtering each pixel of projections
+
         """
-        wiener_small_numbers = IterativeRefinement.compute_ssnr(
-            particles_f, ctfs, small_number
-        )
-        wiener_small_numbers = np.where(
-            np.isclose(wiener_small_numbers, 0), 1 / fill_zeros, wiener_small_numbers
-        )
-        wiener_small_numbers = 1 / wiener_small_numbers
+        if method == "white":
+            ssnr = IterativeRefinement.compute_ssnr(
+                method,
+                sigma_noise=kwargs["sigma_noise"],
+                signal_var=kwargs["signal_var"],
+            )
+            wiener_small_numbers = 1 / ssnr
+        elif method == "not_tested":
+            wiener_small_numbers = IterativeRefinement.compute_ssnr(
+                method,
+                projections_f=kwargs["projections_f"],
+                ctfs=kwargs["ctfs"],
+                small_number=kwargs["small_number"],
+            )
+
+            wiener_small_numbers = np.where(
+                np.isclose(wiener_small_numbers, 0),
+                1 / fill_zeros,
+                wiener_small_numbers,
+            )
+            wiener_small_numbers = 1 / wiener_small_numbers
+        else:
+            raise ValueError("Method {method} not implemented")
         return wiener_small_numbers
 
     @staticmethod
-    def compute_ssnr(projections_f, ctfs, small_number=0.01):
+    def compute_ssnr(
+        method,
+        projections_f=None,
+        sigma_noise=None,
+        signal_var=None,
+        small_number=None,
+        ctfs=None,
+    ):
         """Compute spectral signal to noise ratio (SSNR) for each pixel of projections.
 
-        Uses section 2.6:
-
-        Sindelar, C. V., & Grigorieff, N. (2011). An adaptation of the Wiener
-        filter suitable for analyzing images of isolated single particles.
-        Journal of Structural Biology, 176(1), 60–74.
-        http://doi.org/10.1016/j.jsb.2011.06.010
+        Method 'approx' uses Eq. 4 in [1], and assumes (not a very good assumption)
+            the variance of the noise free
+            projection is equal to the variance of the particles in Fourier space.
+        Method 'not_tested' uses section 2.6 in [1]
 
         Parameters
         ----------
         projections_f : arr
             projections in fourier space.
             Shape (n_projections, n_pix, n_pix)
+        signal_var : float
+            Variance of noise in Fourier space. See eq. 4 in [1]
+        small_number : float
+            1/SSNR. Small number for approximating wiener filter effects.
+            See eq. 4 in [1]
         ctfs : arr
             Shape (n_ctfs, n_pix, n_pix)
-        small_number : float
-            Used for "worse" wiener filter approximation during computations.
 
         Returns
         -------
-        ssnr : arr
-            Shape (n_pix, n_pix) the SSNR of each pixel of a projection.
+        ssnr : arr (Shape (n_pix, n_pix)) or float
+            The SSNR of each pixel of a projection.
+
+        References
+        ----------
+        1. Sindelar, C. V., & Grigorieff, N. (2011). An adaptation of the Wiener
+        filter suitable for analyzing images of isolated single particles.
+        Journal of Structural Biology, 176(1), 60–74.
+        http://doi.org/10.1016/j.jsb.2011.06.010
         """
-        n_pix = len(projections_f[0])
+        if method == "white":
+            ssnr = signal_var / sigma_noise**2
 
-        signal_values = np.sum(ctfs * projections_f, axis=0) / np.sum(
-            ctfs * ctfs + small_number, axis=0
-        )
+        elif method == "not_tested":
+            n_pix = len(projections_f[0])
 
-        ctf_sq_sum = np.zeros(n_pix // 2)
-        ctf_img_sq_sum = np.zeros(n_pix // 2)
-        diff_sq_sum = np.zeros(n_pix // 2)
-        shell_pixels = np.zeros(n_pix // 2)
-
-        for radius in range(n_pix // 2):
-            mask = IterativeRefinement.binary_mask(
-                (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
+            signal_values = np.sum(ctfs * projections_f, axis=0) / np.sum(
+                ctfs * ctfs + small_number, axis=0
             )
-            ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
-            ctf_img_sq_sum[radius] = np.sum(
-                mask * np.sum(ctfs**2 * np.abs(projections_f) ** 2, axis=0)
-            )
-            diff_sq_sum[radius] = np.sum(
-                mask * np.sum(np.abs(projections_f - ctfs * signal_values) ** 2, axis=0)
-            )
-            shell_pixels[radius] = np.sum(mask)
 
-        sigma_rs_2 = ctf_img_sq_sum / ctf_sq_sum
-        sigma_rn_2 = diff_sq_sum / (shell_pixels * (len(projections_f) - 1))
+            ctf_sq_sum = np.zeros(n_pix // 2)
+            ctf_img_sq_sum = np.zeros(n_pix // 2)
+            diff_sq_sum = np.zeros(n_pix // 2)
+            shell_pixels = np.zeros(n_pix // 2)
 
-        ssnr_1d = (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
+            for radius in range(n_pix // 2):
+                mask = IterativeRefinement.binary_mask(
+                    (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
+                )
+                ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
+                ctf_img_sq_sum[radius] = np.sum(
+                    mask * np.sum(ctfs**2 * np.abs(projections_f) ** 2, axis=0)
+                )
+                diff_sq_sum[radius] = np.sum(
+                    mask
+                    * np.sum(np.abs(projections_f - ctfs * signal_values) ** 2, axis=0)
+                )
+                shell_pixels[radius] = np.sum(mask)
 
-        return IterativeRefinement.expand_1d_to_nd(ssnr_1d, d=2)
+            sigma_rs_2 = ctf_img_sq_sum / ctf_sq_sum
+            sigma_rn_2 = diff_sq_sum / (shell_pixels * (len(projections_f) - 1))
+
+            ssnr_1d = (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
+            ssnr = IterativeRefinement.expand_1d_to_nd(ssnr_1d, d=2)
+        else:
+            raise ValueError("Method {method} not implemented")
+
+        return ssnr
 
     @staticmethod
     def compute_fsc(map_3d_f_1, map_3d_f_2, small_number=0.01):
@@ -861,7 +927,7 @@ class IterativeRefinement:
                 radius=rad,
                 shape=map_3d_f_1.shape,
                 fill=False,
-            ).astype(np.bool)
+            ).astype(bool)
 
             shell_a = map_3d_f_1[shell_mask]
             shell_b = map_3d_f_2[shell_mask]

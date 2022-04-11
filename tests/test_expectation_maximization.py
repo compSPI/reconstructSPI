@@ -12,7 +12,7 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 def n_pix():
     """Get test pixel count for consistency."""
     n_pix_half_max = 8
-    n_pix_half_min = 2
+    n_pix_half_min = 4
     return np.random.randint(n_pix_half_min, n_pix_half_max + 1) * 2
 
 
@@ -36,17 +36,19 @@ def rand_defocus(n_particles):
 
 @pytest.fixture
 def test_ir(n_pix, n_particles, rand_defocus, rand_angle_list):
-    """Instantiate IterativeRefinement class for testing."""
-    pixels = n_pix
+    """Instantiate IterativeRefinement class for testing.
+
+    Use dynamic pixel size to avoid CTF aliasing. 160 A box length.
+    """
     ctf_info = {
         "amplitude_contrast": 0.1,
         "b_factor": 0.0,
         "batch_size": n_particles,
         "cs": 2.7,
-        "ctf_size": pixels,
+        "ctf_size": n_pix,
         "kv": 300,
-        "pixel_size": 128,
-        "side_len": pixels,
+        "pixel_size": 160 / n_pix,
+        "side_len": n_pix,
         "value_nyquist": 0.1,
         "ctf_params": {
             "defocus_u": rand_defocus,
@@ -55,10 +57,10 @@ def test_ir(n_pix, n_particles, rand_defocus, rand_angle_list):
         },
     }
     map_3d = np.zeros((n_pix, n_pix, n_pix))
-    particles = np.zeros((n_particles, n_pix, n_pix))
+    particles_noise = np.random.normal(np.zeros((n_particles, n_pix, n_pix)), scale=0.1)
 
     itr = 2
-    ir = em.IterativeRefinement(map_3d, particles, ctf_info, itr)
+    ir = em.IterativeRefinement(map_3d, particles_noise, ctf_info, itr)
     return ir
 
 
@@ -244,11 +246,11 @@ def test_compute_bayesian_weights(test_ir):
 
     Compares "perfect alignment" against analytical forms.
     Perfect alignment has all noise residueals zero and all bayesian_weights equal.
-    Small sigma makes this test fail because of numerical impercision
+    Small sigma_noise makes this test fail because of numerical impercision
     in offset_safe + scale*particle_norm, which should be zero.
     Also important to keep the tolerance of the em_loss test low.
     """
-    sigma = 1 + np.random.normal(0, 1) ** 2
+    sigma_noise = 1 + np.random.normal(0, 1) ** 2
 
     n_pix = np.random.randint(low=10, high=100)
     particle = np.ones((n_pix, n_pix)).astype(np.complex64)
@@ -257,7 +259,7 @@ def test_compute_bayesian_weights(test_ir):
     perfect_alignment_slices = np.ones((n_particles, n_pix, n_pix)).astype(np.complex64)
 
     bayesian_weights, z_norm_const, em_loss = test_ir.compute_bayesian_weights(
-        particle, perfect_alignment_slices, sigma
+        particle, perfect_alignment_slices, sigma_noise
     )
     assert bayesian_weights.shape == (n_particles,)
     assert np.isclose(bayesian_weights.std(), 0)
@@ -276,14 +278,14 @@ def test_compute_bayesian_weights(test_ir):
         bayesian_weights_low,
         z_norm_const_low,
         em_loss_low,
-    ) = test_ir.compute_bayesian_weights(particle, slices_scale, sigma=low_temp)
+    ) = test_ir.compute_bayesian_weights(particle, slices_scale, sigma_noise=low_temp)
     (
         bayesian_weights_med,
         z_norm_const_med,
         em_loss_med,
-    ) = test_ir.compute_bayesian_weights(particle, slices_scale, sigma=med_temp)
+    ) = test_ir.compute_bayesian_weights(particle, slices_scale, sigma_noise=med_temp)
     bayesian_weights_hi, z_norm_const_hi, em_loss_hi = test_ir.compute_bayesian_weights(
-        particle, slices_scale, sigma=hi_temp
+        particle, slices_scale, sigma_noise=hi_temp
     )
 
     assert np.alltrue(bayesian_weights_low <= bayesian_weights_med)
@@ -365,11 +367,9 @@ def test_insert_slice_v(test_ir, n_pix):
 def test_compute_fsc(test_ir, n_pix):
     """Test computation of FSC."""
     map_1_ones = np.ones((n_pix, n_pix, n_pix))
-
     fsc_1 = test_ir.compute_fsc(map_1_ones, map_1_ones)
     fsc_diff_amplitudes = test_ir.compute_fsc(map_1_ones * 2, map_1_ones * 4.5)
     fsc_diff_phases = test_ir.compute_fsc(map_1_ones * 1, map_1_ones * -1)
-
     assert fsc_1.shape == (n_pix // 2,)
     assert np.allclose(fsc_1.real, 1, atol=0.1)
     assert np.allclose(fsc_diff_amplitudes.real, 1, atol=0.1)
@@ -533,6 +533,14 @@ def test_expand_1d_to_nd(test_ir, n_pix):
 
 def test_compute_ssnr(test_ir, n_pix, n_particles):
     """Test the shape of compute_ssnr."""
+    method = "white"
+    signal_var = 0.1
+    sigma_noise = 0.1
+    ssnr = test_ir.compute_ssnr(method, sigma_noise=sigma_noise, signal_var=signal_var)
+    assert ssnr > 0
+    assert isinstance(ssnr, float)
+
+    method = "not_tested"
     particles_f = (
         primal_to_fourier_2D(
             torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
@@ -541,8 +549,10 @@ def test_compute_ssnr(test_ir, n_pix, n_particles):
         .reshape((n_particles, n_pix, n_pix))
     )
     ctfs = test_ir.build_ctf_array()
-    ssnrs = test_ir.compute_ssnr(particles_f, ctfs)
-    assert ssnrs.shape == (n_pix, n_pix)
+    ssnr = test_ir.compute_ssnr(
+        method, projections_f=particles_f, ctfs=ctfs, small_number=0.01
+    )
+    assert ssnr.shape == (n_pix, n_pix)
 
 
 def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
@@ -554,13 +564,34 @@ def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
         .numpy()
         .reshape((n_particles, n_pix, n_pix))
     )
+
+    method = "white"
+    signal_var_low = 0.1
+    signal_var_hi = signal_var_low * 10
+    ssnr_inv_low = test_ir.get_wiener_small_numbers(
+        method, sigma_noise=0.1, signal_var=signal_var_low
+    )
+    ssnr_inv_hi = test_ir.get_wiener_small_numbers(
+        method, sigma_noise=0.1, signal_var=signal_var_hi
+    )
+    assert 1 / ssnr_inv_hi > 1 / ssnr_inv_low
+
     ctfs = test_ir.build_ctf_array()
-    small_numbers = test_ir.get_wiener_small_numbers(particles_f, ctfs)
+    method = "not_tested"
+    small_numbers = test_ir.get_wiener_small_numbers(
+        method, projections_f=particles_f, ctfs=ctfs, small_number=0.01
+    )
     assert small_numbers.shape == (n_pix, n_pix)
 
 
 def test_iterative_refinement(test_ir, n_pix):
-    """Test complete iterative refinement algorithm."""
+    """Test complete iterative refinement algorithm.
+
+    1. Test shapes
+
+    2. Test sphere
+
+    """
     (
         map_3d_r_final,
         half_map_3d_r_1,
@@ -572,3 +603,63 @@ def test_iterative_refinement(test_ir, n_pix):
     assert half_map_3d_r_1.shape == (n_pix, n_pix, n_pix)
     assert half_map_3d_r_2.shape == (n_pix, n_pix, n_pix)
     assert fsc_1d.shape == (n_pix // 2,)
+
+    n_particles = 3
+    n_pix = 32
+    ctf_info = {
+        "amplitude_contrast": 0.1,
+        "b_factor": 0.0,
+        "batch_size": n_particles,
+        "cs": 2.7,
+        "ctf_size": n_pix,
+        "kv": 300,
+        "pixel_size": 160 / n_pix,
+        "side_len": n_pix,
+        "value_nyquist": 0.1,
+        "ctf_params": {
+            "defocus_u": np.array([1 for _ in range(n_particles)]),
+            "defocus_v": np.array([1 for _ in range(n_particles)]),
+            "defocus_angle": np.array([0 for _ in range(n_particles)]),
+        },
+    }
+
+    center = (n_pix // 2, n_pix // 2, n_pix // 2)
+    radius = n_pix // 2
+    shape = (n_pix, n_pix, n_pix)
+    map_3d = em.IterativeRefinement.binary_mask(
+        center, radius, shape, 3, fill=True, shell_thickness=1
+    )
+
+    rots = em.IterativeRefinement.grid_SO3_uniform(n_particles)
+    xy_plane = em.IterativeRefinement.generate_cartesian_grid(n_pix, 2)
+    xyz_rotated_padded = em.IterativeRefinement.pad_and_rotate_xy_planes(
+        xy_plane, rots, n_pix
+    )
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    slices = em.IterativeRefinement.generate_slices(map_3d, xyz_rotated)
+    particles = slices.real
+    particles_noise = np.random.normal(particles, scale=0.1)
+    # read precomputed particle off disk (e.g. as .npy file.
+    # see linear_simulator tests).
+    # should have matching ctfs
+    # can fourier downsample to make tests quick. see
+
+    itr = 2
+    (
+        map_3d_r_final,
+        half_map_3d_r_1,
+        half_map_3d_r_2,
+        fsc_1d,
+    ) = em.IterativeRefinement(
+        map_3d, particles_noise, ctf_info, itr
+    ).iterative_refinement()
+
+    assert map_3d_r_final.shape == (n_pix, n_pix, n_pix)
+    assert half_map_3d_r_1.shape == (n_pix, n_pix, n_pix)
+    assert half_map_3d_r_2.shape == (n_pix, n_pix, n_pix)
+    assert fsc_1d.shape == (n_pix // 2,)
+
+    # check things like: half maps close to each other
+    # final map same/different as initial map
+    # noise_level = 1e-3
+    # map_3d_noisy = np.random.normal(map_3d, scale=noise_level)
