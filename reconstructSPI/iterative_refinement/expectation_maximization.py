@@ -780,19 +780,15 @@ class IterativeRefinement:
 
         Returns
         -------
-        wiener_small_numbers : arr
-            Shape (n_pix, n_pix)
+        wiener_small_numbers : arr, Shape (n_pix, n_pix); or float
             Small numbers for wiener filtering each pixel of projections
-
-        ssnr_inv : float
 
         """
         if method == "approx":
             ssnr = IterativeRefinement.compute_ssnr(
                 method, particles_f, signal_var=kwargs["signal_var"]
             )
-            ssnr_inv = 1 / ssnr
-            return ssnr_inv
+            wiener_small_numbers = 1 / ssnr
         elif method == "not_tested":
             wiener_small_numbers = IterativeRefinement.compute_ssnr(
                 method,
@@ -807,7 +803,7 @@ class IterativeRefinement:
                 wiener_small_numbers,
             )
             wiener_small_numbers = 1 / wiener_small_numbers
-            return wiener_small_numbers
+        return wiener_small_numbers
 
     @staticmethod
     def compute_ssnr(
