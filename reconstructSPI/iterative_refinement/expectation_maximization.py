@@ -912,7 +912,7 @@ class IterativeRefinement:
                 radius=rad,
                 shape=map_3d_f_1.shape,
                 fill=False,
-            ).astype(np.bool)
+            ).astype(bool)
 
             shell_a = map_3d_f_1[shell_mask]
             shell_b = map_3d_f_2[shell_mask]

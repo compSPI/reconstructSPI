@@ -624,8 +624,7 @@ def test_iterative_refinement(test_ir, n_pix):
         center, radius, shape, 3, fill=True, shell_thickness=1
     )
 
-    n_rots = 10
-    rots = em.IterativeRefinement.grid_SO3_uniform(n_rots)
+    rots = em.IterativeRefinement.grid_SO3_uniform(n_particles)
     xy_plane = em.IterativeRefinement.generate_cartesian_grid(n_pix, 2)
     xyz_rotated_padded = em.IterativeRefinement.pad_and_rotate_xy_planes(
         xy_plane, rots, n_pix
