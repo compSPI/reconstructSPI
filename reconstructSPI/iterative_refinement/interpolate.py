@@ -3,11 +3,27 @@
 import numpy as np
 
 
-def diff(xy0_rot):
-    """Precompute for linear interpolation."""
-    r0 = np.floor(xy0_rot).astype(int)
+def diff(xyz_rot):
+    """Precompute for linear interpolation.
+
+    Parameters
+    ----------
+    xyz_rot : array
+        Rotated plane
+        Shape (3,n_pix**2)
+
+    Returns
+    -------
+    r0,r1 : array
+        Shape (3,n_pix**2)
+        Location to nearby grid points (r0 low, r1 high)
+    dd : array
+        Shape (8,n_pix**2)
+        Distance to 8 nearby voxels. Linear interpolation kernel.
+    """
+    r0 = np.floor(xyz_rot).astype(int)
     r1 = r0 + 1
-    fr = xy0_rot - r0
+    fr = xyz_rot - r0
     mfr = 1 - fr
     mfx, mfy, mfz = mfr[:, 0], mfr[:, 1], mfr[:, -1]
     fx, fy, fz = fr[:, 0], fr[:, 1], fr[:, -1]

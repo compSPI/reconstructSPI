@@ -44,7 +44,7 @@ def test_diff():
     r0, r1, dd = diff(xy0_rot.T)
     if not np.isclose(rad, 0):
         assert not np.allclose(r0.T, xy0_plane)
-    assert np.isclose(dd.sum(0), np.ones(n_pix2))
+    assert np.allclose(dd.sum(0), np.ones(n_pix2))
     assert np.allclose(r0 + 1, r1)
 
 
