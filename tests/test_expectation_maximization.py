@@ -11,8 +11,8 @@ from reconstructSPI.iterative_refinement import expectation_maximization as em
 @pytest.fixture
 def n_pix():
     """Get test pixel count for consistency."""
-    n_pix_half_max = 8
-    n_pix_half_min = 2
+    n_pix_half_max = 16
+    n_pix_half_min = 8
     return np.random.randint(n_pix_half_min, n_pix_half_max + 1) * 2
 
 
@@ -45,7 +45,7 @@ def test_ir(n_pix, n_particles, rand_defocus, rand_angle_list):
         "cs": 2.7,
         "ctf_size": pixels,
         "kv": 300,
-        "pixel_size": 1,
+        "pixel_size": 5,
         "side_len": pixels,
         "value_nyquist": 0.1,
         "ctf_params": {
@@ -55,10 +55,10 @@ def test_ir(n_pix, n_particles, rand_defocus, rand_angle_list):
         },
     }
     map_3d = np.zeros((n_pix, n_pix, n_pix))
-    particles = np.zeros((n_particles, n_pix, n_pix))
+    particles_noise = np.random.normal(np.zeros((n_particles, n_pix, n_pix)), scale=0.1)
 
     itr = 2
-    ir = em.IterativeRefinement(map_3d, particles, ctf_info, itr)
+    ir = em.IterativeRefinement(map_3d, particles_noise, ctf_info, itr)
     return ir
 
 
@@ -605,7 +605,7 @@ def test_iterative_refinement(test_ir, n_pix):
         "cs": 2.7,
         "ctf_size": n_pix,
         "kv": 300,
-        "pixel_size": 1,
+        "pixel_size": 5,
         "side_len": n_pix,
         "value_nyquist": 0.1,
         "ctf_params": {
@@ -630,6 +630,7 @@ def test_iterative_refinement(test_ir, n_pix):
     xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     slices = em.IterativeRefinement.generate_slices(map_3d, xyz_rotated)
     particles = slices
+    particles_noise = np.random.normal(particles, scale=0.1)
     # read precomputed particle off disk (e.g. as .npy file.
     # see linear_simulator tests).
     # should have matching ctfs
@@ -641,7 +642,9 @@ def test_iterative_refinement(test_ir, n_pix):
         half_map_3d_r_1,
         half_map_3d_r_2,
         fsc_1d,
-    ) = em.IterativeRefinement(map_3d, particles, ctf_info, itr).iterative_refinement()
+    ) = em.IterativeRefinement(
+        map_3d, particles_noise, ctf_info, itr
+    ).iterative_refinement()
 
     assert map_3d_r_final.shape == (n_pix, n_pix, n_pix)
     assert half_map_3d_r_1.shape == (n_pix, n_pix, n_pix)
