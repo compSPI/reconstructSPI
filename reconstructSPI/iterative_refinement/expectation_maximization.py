@@ -155,20 +155,6 @@ class IterativeRefinement:
 
         xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
 
-        # well defined over all ctfs and all particles?
-        # output shape (n,n)
-        # negative
-        wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
-            method="white",
-            sigma_noise=self.sigma_noise,
-            signal_var=self.signal_var,
-        )
-        wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(
-            method="approx",
-            particles_f=particles_f_2,
-            signal_var=self.signal_var,
-        )
-
         for iteration in range(self.max_itr):
             logging.info(f"Iteration{iteration}")
             half_map_3d_f_1 = (
@@ -192,11 +178,13 @@ class IterativeRefinement:
             xyz_rotated_padded = IterativeRefinement.pad_and_rotate_xy_planes(
                 xy0_plane, rots, n_pix
             )
-            xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+            xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
 
             slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
-
             slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
+
+            signal_var_1 = slices_1.var(axis=(1, 2))
+            signal_var_2 = slices_2.var(axis=(1, 2))
 
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
             map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
@@ -216,6 +204,7 @@ class IterativeRefinement:
                 slices_conv_ctfs_1 = ctf_vectorized(slices_1, ctf_1)
                 slices_conv_ctfs_2 = ctf_vectorized(slices_2, ctf_2)
 
+                # optimize estimate in em iterations
                 sigma_noise = self.sigma_noise
 
                 (
@@ -225,6 +214,7 @@ class IterativeRefinement:
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_1[particle_idx], slices_conv_ctfs_1, sigma_noise
                 )
+
                 em_loss_batch_1 += em_loss_1
                 logging.info(
                     f"log z_norm_const_1={z_norm_const_1}, em_loss_1={em_loss_1}"
@@ -237,9 +227,21 @@ class IterativeRefinement:
                 ) = IterativeRefinement.compute_bayesian_weights(
                     particles_f_2[particle_idx], slices_conv_ctfs_2, sigma_noise
                 )
+
                 em_loss_batch_2 += em_loss_2
                 logging.info(
                     f"log z_norm_const_3={z_norm_const_2}, em_loss_3={em_loss_2}"
+                )
+
+                wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
+                    method="white",
+                    sigma_noise=sigma_noise,
+                    signal_var=(signal_var_1 * bayes_factors_1).sum(),
+                )
+                wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(
+                    method="white",
+                    sigma_noise=sigma_noise,
+                    signal_var=(signal_var_2 * bayes_factors_2).sum(),
                 )
 
                 particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
@@ -249,7 +251,6 @@ class IterativeRefinement:
                     particles_f_2, ctf_1, wiener_small_numbers_2
                 )
 
-                # multiply by bayes weights
                 logging.info("Inserting slices")
                 for one_slice_idx in range(len(bayes_factors_1)):
                     xyz_planes = xyz_rotated_padded[one_slice_idx]
@@ -339,7 +340,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -481,7 +482,7 @@ class IterativeRefinement:
         if d == 2:
             grid = np.meshgrid(axis_pts, axis_pts)
 
-            xy_plane = np.zeros((3, n_pix**2))
+            xy_plane = np.zeros((3, n_pix ** 2))
 
             for di in range(2):
                 xy_plane[di, :] = grid[di].flatten()
@@ -490,7 +491,7 @@ class IterativeRefinement:
         if d == 3:
             grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
 
-            xyz = np.zeros((3, n_pix**3))
+            xyz = np.zeros((3, n_pix ** 3))
 
             for di in range(3):
                 xyz[di] = grid[di].flatten()
@@ -556,14 +557,16 @@ class IterativeRefinement:
         n_pix = len(map_3d_f)
         slices = np.empty((n_rotations, n_pix, n_pix), dtype=np.complex64)
         for i in range(n_rotations):
-            slices[i] = map_coordinates(
-                map_3d_f.real,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape((n_pix, n_pix)) + 1j * map_coordinates(
-                map_3d_f.imag,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape(
-                (n_pix, n_pix)
+            slices[i] = (
+                map_coordinates(
+                    map_3d_f.real,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
+                + 1j
+                * map_coordinates(
+                    map_3d_f.imag,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
             )
         return slices
 
@@ -604,7 +607,7 @@ class IterativeRefinement:
         xy_plane_padded = np.concatenate(
             (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
         )
-        xyz_rotated_padded = np.empty((n_rotations, 3, 3 * n_pix**2))
+        xyz_rotated_padded = np.empty((n_rotations, 3, 3 * n_pix ** 2))
         for i in range(n_rotations):
             xyz_rotated_padded[i] = rots[i] @ xy_plane_padded
         return xyz_rotated_padded
@@ -637,7 +640,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
         """
         n_pix = slice_real.shape[0]
-        slice_values = np.tile(slice_real.reshape((n_pix**2,)), (3,))
+        slice_values = np.tile(slice_real.reshape((n_pix ** 2,)), (3,))
 
         inserted_slice_3d = griddata(
             xy_rotated.T, slice_values, xyz.T, fill_value=0, method="linear"
@@ -734,7 +737,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma_noise**2) ** -1)
+        scale = -((2 * sigma_noise ** 2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -808,6 +811,8 @@ class IterativeRefinement:
                 wiener_small_numbers,
             )
             wiener_small_numbers = 1 / wiener_small_numbers
+        else:
+            raise ValueError("Method {method} not implemented")
         return wiener_small_numbers
 
     @staticmethod
@@ -852,7 +857,7 @@ class IterativeRefinement:
         http://doi.org/10.1016/j.jsb.2011.06.010
         """
         if method == "white":
-            ssnr = signal_var / sigma_noise**2
+            ssnr = signal_var / sigma_noise ** 2
 
         elif method == "not_tested":
             n_pix = len(projections_f[0])
@@ -870,9 +875,9 @@ class IterativeRefinement:
                 mask = IterativeRefinement.binary_mask(
                     (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
                 )
-                ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
+                ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs ** 2, axis=0))
                 ctf_img_sq_sum[radius] = np.sum(
-                    mask * np.sum(ctfs**2 * np.abs(projections_f) ** 2, axis=0)
+                    mask * np.sum(ctfs ** 2 * np.abs(projections_f) ** 2, axis=0)
                 )
                 diff_sq_sum[radius] = np.sum(
                     mask
@@ -972,15 +977,15 @@ class IterativeRefinement:
             a, b, c = center
             nx0, nx1, nx2 = shape
             x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-            r2 = x0**2 + x1**2 + x2**2
+            r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
 
         elif d == 2:
             a, b = center
             nx0, nx1 = shape
             x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
-            r2 = x0**2 + x1**2
+            r2 = x0 ** 2 + x1 ** 2
 
-        mask = r2 <= radius**2
+        mask = r2 <= radius ** 2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
