@@ -101,7 +101,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_cartesian_grid(test_ir, n_pix):
     """Test generation of xy plane and xyz cube."""
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
-    assert xy_plane.shape == (3, n_pix**2)
+    assert xy_plane.shape == (3, n_pix ** 2)
 
     n_pix_2 = 2
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
@@ -112,7 +112,7 @@ def test_generate_cartesian_grid(test_ir, n_pix):
     assert np.isclose(xy_plane.min(), -n_pix_2 // 2)
 
     xyz_cube = test_ir.generate_cartesian_grid(n_pix, 3)
-    assert xyz_cube.shape == (3, n_pix**3)
+    assert xyz_cube.shape == (3, n_pix ** 3)
 
     n_pix_2 = 2
     cube_2 = np.array(
@@ -142,7 +142,7 @@ def test_pad_and_rotate_xy_plane(test_ir, n_pix, n_particles):
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     rots = test_ir.grid_SO3_uniform(n_rotations)
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
-    assert xyz_rotated_padded.shape == (n_rotations, 3, 3 * n_pix**2)
+    assert xyz_rotated_padded.shape == (n_rotations, 3, 3 * n_pix ** 2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -171,11 +171,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     slices = test_ir.generate_slices(map_3d, xyz_rotated)
 
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_padded.shape == (n_particles, 3, 3 * n_pix**2)
+    assert xyz_rotated_padded.shape == (n_particles, 3, 3 * n_pix ** 2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
@@ -201,7 +201,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
         xy_plane, rot_90deg_about_y, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
 
     slices = test_ir.generate_slices(map_plane_ones_xzplane, xyz_rotated)
     omit_idx_artefact = 1
@@ -222,7 +222,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
         xy_plane, rot_180deg_about_z, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
 
     slices = test_ir.generate_slices(map_plane_ones_xyplane, xyz_rotated)
     assert np.allclose(
@@ -324,7 +324,7 @@ def test_insert_slice(test_ir, n_pix):
     )
 
     slices = test_ir.generate_slices(
-        map_plane_ones, xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+        map_plane_ones, xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     )
 
     xyz_voxels = test_ir.generate_cartesian_grid(n_pix, 3)
@@ -533,6 +533,14 @@ def test_expand_1d_to_nd(test_ir, n_pix):
 
 def test_compute_ssnr(test_ir, n_pix, n_particles):
     """Test the shape of compute_ssnr."""
+    method = "white"
+    signal_var = 0.1
+    sigma_noise = 0.1
+    ssnr = test_ir.compute_ssnr(method, sigma_noise=sigma_noise, signal_var=signal_var)
+    assert ssnr > 0
+    assert isinstance(ssnr, float)
+
+    method = "not_tested"
     particles_f = (
         primal_to_fourier_2D(
             torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
@@ -541,13 +549,9 @@ def test_compute_ssnr(test_ir, n_pix, n_particles):
         .reshape((n_particles, n_pix, n_pix))
     )
     ctfs = test_ir.build_ctf_array()
-    method = "approx"
-    signal_var = 0.1
-    ssnr = test_ir.compute_ssnr(method, particles_f, signal_var=signal_var)
-    assert ssnr > 0
-    assert isinstance(ssnr, float)
-    method = "not_tested"
-    ssnr = test_ir.compute_ssnr(method, particles_f, ctfs=ctfs, small_number=0.01)
+    ssnr = test_ir.compute_ssnr(
+        method, particles_f=particles_f, ctfs=ctfs, small_number=0.01
+    )
     assert ssnr.shape == (n_pix, n_pix)
 
 
@@ -561,7 +565,7 @@ def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
         .reshape((n_particles, n_pix, n_pix))
     )
 
-    method = "approx"
+    method = "white"
     signal_var_low = 0.1
     signal_var_hi = signal_var_low * 10
     ssnr_inv_low = test_ir.get_wiener_small_numbers(
@@ -631,7 +635,7 @@ def test_iterative_refinement(test_ir, n_pix):
     xyz_rotated_padded = em.IterativeRefinement.pad_and_rotate_xy_planes(
         xy_plane, rots, n_pix
     )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     slices = em.IterativeRefinement.generate_slices(map_3d, xyz_rotated)
     particles = slices.astype(np.float64)
     particles_noise = np.random.normal(particles, scale=0.1)
