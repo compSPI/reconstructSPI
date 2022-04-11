@@ -25,8 +25,8 @@ def diff(xyz_rot):
     r1 = r0 + 1
     fr = xyz_rot - r0
     mfr = 1 - fr
-    mfx, mfy, mfz = mfr[:, 0], mfr[:, 1], mfr[:, -1]
-    fx, fy, fz = fr[:, 0], fr[:, 1], fr[:, -1]
+    mfx, mfy, mfz = mfr[0], mfr[1], mfr[-1]
+    fx, fy, fz = fr[0], fr[1], fr[-1]
     dd000 = mfz * mfy * mfx
     dd001 = mfz * mfy * fx
     dd010 = mfz * fy * mfx
