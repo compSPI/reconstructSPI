@@ -50,11 +50,12 @@ class IterativeRefinement:
             http://doi.org/10.1016/S0076-6879(10)82011-7
     """
 
-    def __init__(self, map_3d_init, particles, ctf_info, max_itr=7):
+    def __init__(self, map_3d_init, particles, ctf_info, max_itr=7, signal_var=0.1):
         self.map_3d_init = map_3d_init
         self.particles = particles
         self.ctf_info = ctf_info
         self.max_itr = max_itr
+        self.signal_var = signal_var
         self.insert_slice_vectorized = np.vectorize(
             IterativeRefinement.insert_slice,
             excluded=[
@@ -114,7 +115,8 @@ class IterativeRefinement:
             .reshape((n_batch_2, n_pix, n_pix))
         )
 
-        n_rotations = len(self.particles)
+        n_rotations = n_batch_1 + n_batch_2
+        self.particles = self.particles[:n_rotations]
 
         half_map_3d_r_1, half_map_3d_r_2 = (
             self.map_3d_init.copy(),
@@ -142,11 +144,18 @@ class IterativeRefinement:
 
         xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
 
+        # well defined over all ctfs and all particles?
+        # output shape (n,n)
+        # negative
         wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
-            particles_f_1, ctfs_1
+            method="approx",
+            particles_f=particles_f_1,
+            signal_var=self.signal_var,
         )
         wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(
-            particles_f_2, ctfs_2
+            method="approx",
+            particles_f=particles_f_2,
+            signal_var=self.signal_var,
         )
 
         for _ in range(self.max_itr):
@@ -228,6 +237,9 @@ class IterativeRefinement:
                     )
                 )
 
+                # multiply by bayes weights
+                # check sum
+                # check type
                 for one_slice_idx in range(len(bayes_factors_1)):
                     xyz_planes = xyz_rotated_padded[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
@@ -530,7 +542,7 @@ class IterativeRefinement:
         """
         n_rotations = len(xyz_rotated)
         n_pix = len(map_3d_f)
-        slices = np.empty((n_rotations, n_pix, n_pix), dtype=float)
+        slices = np.empty((n_rotations, n_pix, n_pix), dtype=np.complex64)
         for i in range(n_rotations):
             slices[i] = (
                 map_coordinates(
@@ -744,7 +756,12 @@ class IterativeRefinement:
         return projection_wfilter_f
 
     @staticmethod
-    def get_wiener_small_numbers(particles_f, ctfs, small_number=0.01, fill_zeros=0.01):
+    def get_wiener_small_numbers(
+        method,
+        particles_f,
+        fill_zeros=0.01,
+        **kwargs,
+    ):
         """Compute wiener small number array.
 
         Parameters
@@ -765,73 +782,106 @@ class IterativeRefinement:
         -------
         wiener_small_numbers : arr
             Shape (n_pix, n_pix)
-            Small numbers to be used in wiener filtering each pixel of projections
+            Small numbers for wiener filtering each pixel of projections
+
+        ssnr_inv : float
+
         """
-        wiener_small_numbers = IterativeRefinement.compute_ssnr(
-            particles_f, ctfs, small_number
-        )
-        wiener_small_numbers = np.where(
-            np.isclose(wiener_small_numbers, 0), 1 / fill_zeros, wiener_small_numbers
-        )
-        wiener_small_numbers = 1 / wiener_small_numbers
-        return wiener_small_numbers
+        if method == "approx":
+            ssnr = IterativeRefinement.compute_ssnr(
+                method, particles_f, signal_var=kwargs["signal_var"]
+            )
+            ssnr_inv = 1 / ssnr
+            return ssnr_inv
+        elif method == "not_tested":
+            wiener_small_numbers = IterativeRefinement.compute_ssnr(
+                method,
+                particles_f,
+                ctfs=kwargs["ctfs"],
+                small_number=kwargs["small_number"],
+            )
+
+            wiener_small_numbers = np.where(
+                np.isclose(wiener_small_numbers, 0),
+                1 / fill_zeros,
+                wiener_small_numbers,
+            )
+            wiener_small_numbers = 1 / wiener_small_numbers
+            return wiener_small_numbers
 
     @staticmethod
-    def compute_ssnr(projections_f, ctfs, small_number=0.01):
+    def compute_ssnr(
+        method, projections_f, signal_var=None, small_number=None, ctfs=None
+    ):
         """Compute spectral signal to noise ratio (SSNR) for each pixel of projections.
 
-        Uses section 2.6:
-
-        Sindelar, C. V., & Grigorieff, N. (2011). An adaptation of the Wiener
-        filter suitable for analyzing images of isolated single particles.
-        Journal of Structural Biology, 176(1), 60–74.
-        http://doi.org/10.1016/j.jsb.2011.06.010
+        Method 'approx' uses Eq. 4 in [1], and assumes (not a very good assumption)
+            the variance of the noise free
+            projection is equal to the variance of the particles in Fourier space.
+        Method 'not_tested' uses section 2.6 in [1]
 
         Parameters
         ----------
         projections_f : arr
             projections in fourier space.
             Shape (n_projections, n_pix, n_pix)
+        signal_var : float
+            Variance of noise in Fourier space. See eq. 4 in [1]
+        small_number : float
+            1/SSNR. See eq. 4 in [1]
         ctfs : arr
             Shape (n_ctfs, n_pix, n_pix)
-        small_number : float
-            Used for "worse" wiener filter approximation during computations.
 
         Returns
         -------
-        ssnr : arr
-            Shape (n_pix, n_pix) the SSNR of each pixel of a projection.
+        ssnr : arr (Shape (n_pix, n_pix)) or float
+            The SSNR of each pixel of a projection.
+
+        References
+        ----------
+        1. Sindelar, C. V., & Grigorieff, N. (2011). An adaptation of the Wiener
+        filter suitable for analyzing images of isolated single particles.
+        Journal of Structural Biology, 176(1), 60–74.
+        http://doi.org/10.1016/j.jsb.2011.06.010
         """
-        n_pix = len(projections_f[0])
+        if method == "approx":
+            ssnr = projections_f.var() / signal_var
 
-        signal_values = np.sum(ctfs * projections_f, axis=0) / np.sum(
-            ctfs * ctfs + small_number, axis=0
-        )
+        elif method == "not_tested":
+            n_pix = len(projections_f[0])
 
-        ctf_sq_sum = np.zeros(n_pix // 2)
-        ctf_img_sq_sum = np.zeros(n_pix // 2)
-        diff_sq_sum = np.zeros(n_pix // 2)
-        shell_pixels = np.zeros(n_pix // 2)
-
-        for radius in range(n_pix // 2):
-            mask = IterativeRefinement.binary_mask(
-                (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
+            signal_values = np.sum(ctfs * projections_f, axis=0) / np.sum(
+                ctfs * ctfs + small_number, axis=0
             )
-            ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs ** 2, axis=0))
-            ctf_img_sq_sum[radius] = np.sum(
-                mask * np.sum(ctfs ** 2 * np.abs(projections_f) ** 2, axis=0)
-            )
-            diff_sq_sum[radius] = np.sum(
-                mask * np.sum(np.abs(projections_f - ctfs * signal_values) ** 2, axis=0)
-            )
-            shell_pixels[radius] = np.sum(mask)
 
-        sigma_rs_2 = ctf_img_sq_sum / ctf_sq_sum
-        sigma_rn_2 = diff_sq_sum / (shell_pixels * (len(projections_f) - 1))
+            ctf_sq_sum = np.zeros(n_pix // 2)
+            ctf_img_sq_sum = np.zeros(n_pix // 2)
+            diff_sq_sum = np.zeros(n_pix // 2)
+            shell_pixels = np.zeros(n_pix // 2)
 
-        ssnr_1d = (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
+            for radius in range(n_pix // 2):
+                mask = IterativeRefinement.binary_mask(
+                    (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
+                )
+                ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs ** 2, axis=0))
+                ctf_img_sq_sum[radius] = np.sum(
+                    mask * np.sum(ctfs ** 2 * np.abs(projections_f) ** 2, axis=0)
+                )
+                diff_sq_sum[radius] = np.sum(
+                    mask
+                    * np.sum(np.abs(projections_f - ctfs * signal_values) ** 2, axis=0)
+                )
+                shell_pixels[radius] = np.sum(mask)
 
-        return IterativeRefinement.expand_1d_to_nd(ssnr_1d, d=2)
+            sigma_rs_2 = ctf_img_sq_sum / ctf_sq_sum
+            sigma_rn_2 = diff_sq_sum / (shell_pixels * (len(projections_f) - 1))
+
+            ssnr_1d = (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
+            ssnr = IterativeRefinement.expand_1d_to_nd(ssnr_1d, d=2)
+        else:
+            raise ValueError("Method {method} not implemented")
+
+        return ssnr
 
     @staticmethod
     def compute_fsc(map_3d_f_1, map_3d_f_2):
