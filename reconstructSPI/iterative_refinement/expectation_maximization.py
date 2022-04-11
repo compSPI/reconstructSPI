@@ -205,7 +205,7 @@ class IterativeRefinement:
             counts_3d_updated_1 = np.zeros(map_shape)
             counts_3d_updated_2 = np.zeros(map_shape)
 
-            em_loss_batch_1, em_loss_batch_2 = 0, 0
+            em_loss_batch_1, em_loss_batch_2 = 0.0, 0.0
             for particle_idx in range(particles_f_1.shape[0]):
                 logging.info(f"Particle {particle_idx}")
                 ctf_1 = ctfs_1[particle_idx]
