@@ -769,7 +769,6 @@ class IterativeRefinement:
     @staticmethod
     def get_wiener_small_numbers(
         method,
-        particles_f,
         fill_zeros=0.01,
         **kwargs,
     ):
@@ -800,7 +799,7 @@ class IterativeRefinement:
         elif method == "not_tested":
             wiener_small_numbers = IterativeRefinement.compute_ssnr(
                 method,
-                particles_f,
+                projections_f=kwargs["projections_f"],
                 ctfs=kwargs["ctfs"],
                 small_number=kwargs["small_number"],
             )

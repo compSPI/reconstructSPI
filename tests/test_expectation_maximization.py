@@ -550,7 +550,7 @@ def test_compute_ssnr(test_ir, n_pix, n_particles):
     )
     ctfs = test_ir.build_ctf_array()
     ssnr = test_ir.compute_ssnr(
-        method, particles_f=particles_f, ctfs=ctfs, small_number=0.01
+        method, projections_f=particles_f, ctfs=ctfs, small_number=0.01
     )
     assert ssnr.shape == (n_pix, n_pix)
 
