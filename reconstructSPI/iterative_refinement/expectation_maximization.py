@@ -252,7 +252,7 @@ class IterativeRefinement:
                 )
 
                 logging.info("Inserting slices")
-                for one_slice_idx in range(len(bayes_factors_1)):
+                for one_slice_idx in range(bayes_factors_1.shape[0]):
                     xyz_planes = xyz_rotated_padded[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
                         particle_f_deconv_1.real, xyz_planes, xyz_voxels
@@ -267,7 +267,7 @@ class IterativeRefinement:
                         count_3d_r + count_3d_i, axis=0
                     ).astype(np.float32)
 
-                for one_slice_idx in range(len(bayes_factors_2)):
+                for one_slice_idx in range(bayes_factors_2.shape[0]):
                     xyz_planes = xyz_rotated_padded[one_slice_idx]
                     inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
                         particle_f_deconv_2.real, xyz_planes, xyz_voxels

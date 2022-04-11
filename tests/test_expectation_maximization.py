@@ -574,7 +574,7 @@ def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
     ssnr_inv_hi = test_ir.get_wiener_small_numbers(
         method, sigma_noise=0.1, signal_var=signal_var_hi
     )
-    assert ssnr_inv_hi > ssnr_inv_low
+    assert 1 / ssnr_inv_hi > 1 / ssnr_inv_low
 
     ctfs = test_ir.build_ctf_array()
     method = "not_tested"
@@ -613,7 +613,7 @@ def test_iterative_refinement(test_ir, n_pix):
         "cs": 2.7,
         "ctf_size": n_pix,
         "kv": 300,
-        "pixel_size": 5,
+        "pixel_size": 160 / n_pix,
         "side_len": n_pix,
         "value_nyquist": 0.1,
         "ctf_params": {
@@ -637,7 +637,7 @@ def test_iterative_refinement(test_ir, n_pix):
     )
     xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
     slices = em.IterativeRefinement.generate_slices(map_3d, xyz_rotated)
-    particles = slices.astype(np.float64)
+    particles = slices.real
     particles_noise = np.random.normal(particles, scale=0.1)
     # read precomputed particle off disk (e.g. as .npy file.
     # see linear_simulator tests).
