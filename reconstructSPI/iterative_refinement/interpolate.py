@@ -39,6 +39,60 @@ def diff(xyz_rot):
     return r0, r1, dd
 
 
+def fill_vec(map_3d_interp, r0_idx_good, r1_idx_good, slice_flat_good, dd):
+    """Linear interpolation kernel.
+
+    Interpolates in nearby 8 voxels.
+    Done on good_idx indices in domain: len(good_idx)<=n_pix**2
+
+    Parameters
+    ----------
+    map_3d_interp : array
+        Empty flattened 3D map to be interpolated into/onto
+    r0_idx_good, r1_idx_good
+        Shape (3,len(good_idx))
+        Location to nearby grid points (r0 low, r1 high)
+    slice_flat_good : array
+        Shape (len(good_idx),)
+        Flattened 2D slice
+    dd : array
+        Shape (8,len(good_idx))
+        Distance to 8 nearby voxels. Linear interpolation kernel.
+
+    Returns
+    -------
+    map_3d_interp : array
+        Filled flattened 3D map to be interpolated into/onto
+    """
+    dd000, dd001, dd010, dd011, dd100, dd101, dd110, dd111 = dd
+
+    map_3d_interp[r0_idx_good[0], r0_idx_good[1], r0_idx_good[-1]] += (
+        slice_flat_good * dd000
+    )
+    map_3d_interp[r1_idx_good[0], r0_idx_good[1], r0_idx_good[-1]] += (
+        slice_flat_good * dd001
+    )
+    map_3d_interp[r0_idx_good[0], r1_idx_good[1], r0_idx_good[-1]] += (
+        slice_flat_good * dd010
+    )
+    map_3d_interp[r1_idx_good[0], r1_idx_good[1], r0_idx_good[-1]] += (
+        slice_flat_good * dd011
+    )
+    map_3d_interp[r0_idx_good[0], r0_idx_good[1], r1_idx_good[-1]] += (
+        slice_flat_good * dd100
+    )
+    map_3d_interp[r1_idx_good[0], r0_idx_good[1], r1_idx_good[-1]] += (
+        slice_flat_good * dd101
+    )
+    map_3d_interp[r0_idx_good[0], r1_idx_good[1], r1_idx_good[-1]] += (
+        slice_flat_good * dd110
+    )
+    map_3d_interp[r1_idx_good[0], r1_idx_good[1], r1_idx_good[-1]] += (
+        slice_flat_good * dd111
+    )
+    return map_3d_interp
+
+
 def interp_vec(slice_2d, r0, r1, dd, n_pix):
     """Linear interpolation.
 
@@ -56,7 +110,6 @@ def interp_vec(slice_2d, r0, r1, dd, n_pix):
     dd : array
         Shape (8,n_pix**2)
         Distance to 8 nearby voxels. Linear interpolation kernel.
-
     """
     r0_idx = r0 + n_pix // 2
     r1_idx = r1 + n_pix // 2
@@ -72,40 +125,6 @@ def interp_vec(slice_2d, r0, r1, dd, n_pix):
 
     r0_idx_good = r0_idx[:, good_idx]
     r1_idx_good = r1_idx[:, good_idx]
-
-    def fill_vec(map_3d_interp, r0_idx_good, r1_idx_good, map_flat_good, dd):
-        """Linear interpolation kernel.
-
-        Interpolates in nearby 8 voxels.
-        """
-        dd000, dd001, dd010, dd011, dd100, dd101, dd110, dd111 = dd
-
-        map_3d_interp[r0_idx_good[0], r0_idx_good[1], r0_idx_good[-1]] += (
-            map_flat_good * dd000
-        )
-        map_3d_interp[r1_idx_good[0], r0_idx_good[1], r0_idx_good[-1]] += (
-            map_flat_good * dd001
-        )
-        map_3d_interp[r0_idx_good[0], r1_idx_good[1], r0_idx_good[-1]] += (
-            map_flat_good * dd010
-        )
-        map_3d_interp[r1_idx_good[0], r1_idx_good[1], r0_idx_good[-1]] += (
-            map_flat_good * dd011
-        )
-
-        map_3d_interp[r0_idx_good[0], r0_idx_good[1], r1_idx_good[-1]] += (
-            map_flat_good * dd100
-        )
-        map_3d_interp[r1_idx_good[0], r0_idx_good[1], r1_idx_good[-1]] += (
-            map_flat_good * dd101
-        )
-        map_3d_interp[r0_idx_good[0], r1_idx_good[1], r1_idx_good[-1]] += (
-            map_flat_good * dd110
-        )
-        map_3d_interp[r1_idx_good[0], r1_idx_good[1], r1_idx_good[-1]] += (
-            map_flat_good * dd111
-        )
-        return map_3d_interp
 
     map_3d_interp = fill_vec(
         map_3d_interp, r0_idx_good, r1_idx_good, slice_flat, dd[:, good_idx]
