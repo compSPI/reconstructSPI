@@ -2,8 +2,7 @@
 
 import logging
 
-import interpolate.diff
-import interpolate.interp_vec
+import interpolate
 import numpy as np
 import torch
 from compSPI.transforms import (
@@ -73,6 +72,7 @@ class IterativeRefinement:
             IterativeRefinement.insert_slice,
             excluded=[
                 "xyz",
+                "method",
             ],
             signature="(n,n),(3,m),(3,k)->(n,n,n),(n,n,n)",
         )
@@ -671,7 +671,7 @@ class IterativeRefinement:
 
         return inserted_slice_3d, count_3d
 
-    def insert_slice_v(self, slices_real, xy_rots, xyz):
+    def insert_slice_v(self, slices_real, xy_rots, xyz, method):
         """Vectorized version of insert_slice.
 
         Parameters
@@ -693,9 +693,7 @@ class IterativeRefinement:
             Voxel array to count slice presence.
             Shape (n_slices, n_pix, n_pix, n_pix)
         """
-        return self.insert_slice_vectorized(
-            slices_real, xy_rots, xyz, method="trilinear"
-        )
+        return self.insert_slice_vectorized(slices_real, xy_rots, xyz, method)
 
     @staticmethod
     def apply_ctf_to_slice(particle_slice, ctf):
