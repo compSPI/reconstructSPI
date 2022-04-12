@@ -70,8 +70,8 @@ def interp_vec(slice_2d, r0, r1, dd, n_pix):
     ones = np.ones(n_pix * n_pix)[good_idx]
     slice_flat = slice_2d.flatten()[good_idx]
 
-    r0_idx_good = r0_idx[good_idx]
-    r1_idx_good = r1_idx[good_idx]
+    r0_idx_good = r0_idx[:, good_idx]
+    r1_idx_good = r1_idx[:, good_idx]
 
     def fill_vec(map_3d_interp, r0_idx_good, r1_idx_good, map_flat_good, dd):
         """Linear interpolation kernel.
