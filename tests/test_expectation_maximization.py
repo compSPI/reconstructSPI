@@ -354,6 +354,18 @@ def test_insert_slice(test_ir, n_pix):
     assert inserted.shape == count.shape
     assert inserted.shape == (n_pix, n_pix, n_pix)
 
+    exceptionThrown = False
+    try:
+        inserted, count = test_ir.insert_slice(
+            slices[0],
+            xyz_rotated_padded[0],
+            xyz_voxels,
+            method="not_implemented",
+        )
+    except ValueError:
+        exceptionThrown = True
+    assert exceptionThrown
+
 
 def test_insert_slice_v(test_ir, n_pix):
     """Test whether vectorized insert_slice produces the right shapes."""
@@ -485,7 +497,6 @@ def test_binary_mask(test_ir):
     area_ratio_analytic = (radius / r_half) ** 2
     assert np.isclose(area_ratio, area_ratio_analytic, atol=0.005)
 
-    # ND test
     exceptionThrown = False
     try:
         test_ir.binary_mask(center, radius, shape, 4)
@@ -566,8 +577,20 @@ def test_compute_ssnr(test_ir, n_pix, n_particles):
     )
     assert ssnr.shape == (n_pix, n_pix)
 
+    exceptionThrown = False
+    try:
+        ssnr = test_ir.compute_ssnr(
+            method="not_implemented",
+            projections_f=particles_f,
+            ctfs=ctfs,
+            small_number=0.01,
+        )
+    except ValueError:
+        exceptionThrown = True
+    assert exceptionThrown
 
-def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
+
+def test_get_wiener_small_numbers(test_ir, n_pix, n_particles):
     """Test the shape of compute_wiener_small_numbers."""
     particles_f = (
         primal_to_fourier_2D(
@@ -595,6 +618,18 @@ def test_compute_wiener_small_numbers(test_ir, n_pix, n_particles):
     )
     assert small_numbers.shape == (n_pix, n_pix)
 
+    exceptionThrown = False
+    try:
+        small_numbers = test_ir.get_wiener_small_numbers(
+            method="not_implemented",
+            projections_f=particles_f,
+            ctfs=ctfs,
+            small_number=0.01,
+        )
+    except ValueError:
+        exceptionThrown = True
+    assert exceptionThrown
+
 
 def test_iterative_refinement(test_ir, n_pix):
     """Test complete iterative refinement algorithm.
@@ -616,8 +651,8 @@ def test_iterative_refinement(test_ir, n_pix):
     assert half_map_3d_r_2.shape == (n_pix, n_pix, n_pix)
     assert fsc_1d.shape == (n_pix // 2,)
 
-    n_particles = 2
-    n_pix = 8
+    n_particles = 10
+    n_pix = 16
     ctf_info = {
         "amplitude_contrast": 0.1,
         "b_factor": 0.0,
@@ -656,7 +691,7 @@ def test_iterative_refinement(test_ir, n_pix):
     # should have matching ctfs
     # can fourier downsample to make tests quick. see
 
-    itr = 2
+    itr = 4
     (
         map_3d_r_final,
         half_map_3d_r_1,
