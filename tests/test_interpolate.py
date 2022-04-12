@@ -69,9 +69,9 @@ def test_interp_vec():
     )
     circle = (map_3d.sum(0) > 0).astype(float)
 
-    F_3d_interp_slice, count_3d_interp_slice = interp_vec(circle, r0, r1, dd, n_pix)
-    assert np.allclose(circle, F_3d_interp_slice.sum(2))
-    assert np.allclose(F_3d_interp_slice.sum(0), F_3d_interp_slice.sum(1))
+    map_3d_interp_slice, count_3d_interp_slice = interp_vec(circle, r0, r1, dd, n_pix)
+    assert np.allclose(circle, map_3d_interp_slice.sum(2))
+    assert np.allclose(map_3d_interp_slice.sum(0), map_3d_interp_slice.sum(1))
 
     rad = np.random.uniform(low=-np.pi, high=np.pi)
     c = np.cos(rad)
@@ -79,18 +79,18 @@ def test_interp_vec():
     rot_xyplane = np.array([[c, s, 0], [-s, c, 0], [0, 0, 1]])
     xy0_rot = rot_xyplane.dot(xy0_plane)
     r0, r1, dd = diff(xy0_rot)
-    F_3d_interp_slice, count_3d_interp_slice = interp_vec(circle, r0, r1, dd, n_pix)
-    interpolated_circle = F_3d_interp_slice.sum(2) > 0
+    map_3d_interp_slice, count_3d_interp_slice = interp_vec(circle, r0, r1, dd, n_pix)
+    interpolated_circle = map_3d_interp_slice.sum(2) > 0
     thresh = 0.9
     assert np.isclose(circle, interpolated_circle).mean() > thresh
 
-    total_mass_ratio = F_3d_interp_slice.sum() / circle.sum()
+    total_mass_ratio = map_3d_interp_slice.sum() / circle.sum()
     assert total_mass_ratio > 0.7
 
-    F_3d_interp_slice_non_zero = F_3d_interp_slice > 0
+    map_3d_interp_slice_non_zero = map_3d_interp_slice > 0
     count_3d_interp_slice_non_zero = count_3d_interp_slice > 0
     non_zero_same = np.logical_and(
-        F_3d_interp_slice_non_zero, count_3d_interp_slice_non_zero
+        map_3d_interp_slice_non_zero, count_3d_interp_slice_non_zero
     )
-    assert np.isclose(non_zero_same, F_3d_interp_slice_non_zero).mean() > 0.95
+    assert np.isclose(non_zero_same, map_3d_interp_slice_non_zero).mean() > 0.95
     assert np.isclose(non_zero_same, count_3d_interp_slice_non_zero).mean() > 0.95

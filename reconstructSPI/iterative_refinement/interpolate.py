@@ -39,19 +39,36 @@ def diff(xyz_rot):
     return r0, r1, dd
 
 
-def interp_vec(map_3d, r0, r1, dd, n_pix):
-    """Linear interpolation."""
+def interp_vec(slice_2d, r0, r1, dd, n_pix):
+    """Linear interpolation.
+
+    Parameters
+    ----------
+    slice_2d : array
+        Slice to be interpolated
+        Shape (n_pix,n_pix)
+
+    Returns
+    -------
+    r0,r1 : array
+        Shape (3,n_pix**2)
+        Location to nearby grid points (r0 low, r1 high)
+    dd : array
+        Shape (8,n_pix**2)
+        Distance to 8 nearby voxels. Linear interpolation kernel.
+
+    """
     r0_idx = r0 + n_pix // 2
     r1_idx = r1 + n_pix // 2
 
-    under_grid_idx = np.any(r0_idx < 0, axis=1)
-    over_grid_idx = np.any(r1_idx >= n_pix, axis=1)
+    under_grid_idx = np.any(r0_idx < 0, axis=0)
+    over_grid_idx = np.any(r1_idx >= n_pix, axis=0)
     good_idx = np.logical_and(~under_grid_idx, ~over_grid_idx)
 
-    map_3d_interp = np.zeros((n_pix, n_pix, n_pix)).astype(map_3d.dtype)
+    map_3d_interp = np.zeros((n_pix, n_pix, n_pix)).astype(slice_2d.dtype)
     count_3d_interp = np.zeros((n_pix, n_pix, n_pix))
     ones = np.ones(n_pix * n_pix)[good_idx]
-    map_flat = map_3d.flatten()[good_idx]
+    slice_flat = slice_2d.flatten()[good_idx]
 
     r0_idx_good = r0_idx[good_idx]
     r1_idx_good = r1_idx[good_idx]
@@ -63,38 +80,38 @@ def interp_vec(map_3d, r0, r1, dd, n_pix):
         """
         dd000, dd001, dd010, dd011, dd100, dd101, dd110, dd111 = dd
 
-        map_3d_interp[r0_idx_good[:, 0], r0_idx_good[:, 1], r0_idx_good[:, -1]] += (
+        map_3d_interp[r0_idx_good[0], r0_idx_good[1], r0_idx_good[-1]] += (
             map_flat_good * dd000
-        )  # 000
-        map_3d_interp[r1_idx_good[:, 0], r0_idx_good[:, 1], r0_idx_good[:, -1]] += (
+        )
+        map_3d_interp[r1_idx_good[0], r0_idx_good[1], r0_idx_good[-1]] += (
             map_flat_good * dd001
-        )  # 001
-        map_3d_interp[r0_idx_good[:, 0], r1_idx_good[:, 1], r0_idx_good[:, -1]] += (
+        )
+        map_3d_interp[r0_idx_good[0], r1_idx_good[1], r0_idx_good[-1]] += (
             map_flat_good * dd010
-        )  # 010
-        map_3d_interp[r1_idx_good[:, 0], r1_idx_good[:, 1], r0_idx_good[:, -1]] += (
+        )
+        map_3d_interp[r1_idx_good[0], r1_idx_good[1], r0_idx_good[-1]] += (
             map_flat_good * dd011
-        )  # 011
+        )
 
-        map_3d_interp[r0_idx_good[:, 0], r0_idx_good[:, 1], r1_idx_good[:, -1]] += (
+        map_3d_interp[r0_idx_good[0], r0_idx_good[1], r1_idx_good[-1]] += (
             map_flat_good * dd100
-        )  # 100
-        map_3d_interp[r1_idx_good[:, 0], r0_idx_good[:, 1], r1_idx_good[:, -1]] += (
+        )
+        map_3d_interp[r1_idx_good[0], r0_idx_good[1], r1_idx_good[-1]] += (
             map_flat_good * dd101
-        )  # 101
-        map_3d_interp[r0_idx_good[:, 0], r1_idx_good[:, 1], r1_idx_good[:, -1]] += (
+        )
+        map_3d_interp[r0_idx_good[0], r1_idx_good[1], r1_idx_good[-1]] += (
             map_flat_good * dd110
-        )  # 110
-        map_3d_interp[r1_idx_good[:, 0], r1_idx_good[:, 1], r1_idx_good[:, -1]] += (
+        )
+        map_3d_interp[r1_idx_good[0], r1_idx_good[1], r1_idx_good[-1]] += (
             map_flat_good * dd111
-        )  # 111
+        )
         return map_3d_interp
 
     map_3d_interp = fill_vec(
-        map_3d_interp, r0_idx_good, r1_idx_good, map_flat, dd[:, good_idx]
+        map_3d_interp, r0_idx_good, r1_idx_good, slice_flat, dd[:, good_idx]
     )
     count_3d_interp = fill_vec(
         count_3d_interp, r0_idx_good, r1_idx_good, ones, dd[:, good_idx]
     )
 
-    return (map_3d_interp, count_3d_interp)
+    return map_3d_interp, count_3d_interp
