@@ -19,7 +19,7 @@ def test_diff():
     n_pix = 16
     xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, d=2)
 
-    n_pix2 = n_pix ** 2
+    n_pix2 = n_pix**2
     r0, r1, dd = diff(xy0_plane)
     assert np.allclose(dd[0], np.ones(n_pix2))
     assert np.allclose(dd[1:], np.zeros((8 - 1, n_pix2)))
