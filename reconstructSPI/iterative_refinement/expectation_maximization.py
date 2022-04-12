@@ -2,7 +2,6 @@
 
 import logging
 
-import interpolate
 import numpy as np
 import torch
 from compSPI.transforms import (
@@ -14,6 +13,8 @@ from geomstats.geometry import special_orthogonal
 from scipy.interpolate import griddata
 from scipy.ndimage import map_coordinates
 from simSPI.linear_simulator import ctf as ctf_module
+
+from reconstructSPI.iterative_refinement import interpolate
 
 
 class IterativeRefinement:
