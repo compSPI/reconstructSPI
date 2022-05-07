@@ -23,7 +23,7 @@ def thetaphi_to_azmelv(theta, phi):
 
 
 def uniform_sphere_grid(nside=2):
-    """Generate azimuth and elevation coordinates for uniform grid points over sphere S2.
+    """Generate azimuth and elevation for uniform grid points over sphere.
 
     Number of points on the grid follows: n_samples = 12 * (nside ** 2)
 
