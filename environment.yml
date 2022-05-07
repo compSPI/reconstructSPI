@@ -15,6 +15,7 @@ dependencies:
   - pytorch
   - scipy
   - pip :
-      - git+https://github.com/compSPI/simSPI.git@init
+      - git+https://github.com/compSPI/simSPI.git
       - git+https://github.com/compSPI/compSPI.git
       - geomstats
+      - healpy
