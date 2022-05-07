@@ -18,3 +18,4 @@ dependencies:
       - git+https://github.com/compSPI/simSPI.git@init
       - git+https://github.com/compSPI/compSPI.git
       - geomstats
+      - healpy
