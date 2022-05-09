@@ -240,13 +240,7 @@ class IterativeRefinement:
                     f"log z_norm_const_2={z_norm_const_2}, em_loss_2={em_loss_2}"
                 )
 
-                (
-                    map_3d_f_norm_1,
-                    wiener_small_numbers_1,
-                    particle_f_deconv_1,
-                    map_3d_f_updated_1,
-                    counts_3d_updated_1,
-                ) = self.maximization(
+                (map_3d_f_norm_1, _, _, _, _,) = self.maximization(
                     map_3d_f_updated_1,
                     counts_3d_updated_1,
                     likelihoods_1,
@@ -259,13 +253,7 @@ class IterativeRefinement:
                     count_norm_const,
                 )
 
-                (
-                    map_3d_f_norm_2,
-                    wiener_small_numbers_2,
-                    particle_f_deconv_2,
-                    map_3d_f_updated_2,
-                    counts_3d_updated_2,
-                ) = self.maximization(
+                (map_3d_f_norm_2, _, _, _, _,) = self.maximization(
                     map_3d_f_updated_2,
                     counts_3d_updated_2,
                     likelihoods_2,

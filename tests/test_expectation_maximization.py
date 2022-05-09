@@ -678,6 +678,7 @@ def test_maximization(test_ir):
         assert arr_3d.shape == shape_3d
     assert np.isclose(wiener_small_numbers, 1)
     assert isinstance(wiener_small_numbers, float)
+    assert particle_f_deconv.shape == shape_2d
 
 
 def test_expectation(test_ir):
@@ -693,6 +694,7 @@ def test_expectation(test_ir):
     )
     assert likelihoods.shape == (n_slices,)
     assert isinstance(z_norm_const, float)
+    assert isinstance(em_loss, float)
 
 
 def test_iterative_refinement(test_ir, n_pix):
