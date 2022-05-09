@@ -807,7 +807,7 @@ class IterativeRefinement:
 
     @staticmethod
     def compute_likelihoods(particle, slices, sigma_noise):
-        """Compute Bayesian weights of particle to slice.
+        """Compute likelihoods for Bayesian weighting of particle to slice.
 
         Assumes a Gaussian white noise model.
 
