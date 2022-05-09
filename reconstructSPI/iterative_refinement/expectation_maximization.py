@@ -164,7 +164,6 @@ class IterativeRefinement:
 
         Precompute initial data before iterative refinement rounds.
 
-
         Returns
         -------
         ctfs_1,ctfs_2,particles_f_1,particles_f_2 : array
