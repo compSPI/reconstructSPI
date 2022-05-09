@@ -682,7 +682,7 @@ def test_maximization(test_ir):
 
 def test_expectation(test_ir):
     """Test expectation."""
-    n_slices = 7
+    n_slices = 8
     n_pix = 16
     sigma_noise = 1
     simulations_f = np.ones((n_slices, n_pix, n_pix))
