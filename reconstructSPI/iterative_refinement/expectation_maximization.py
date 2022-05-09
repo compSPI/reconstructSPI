@@ -175,10 +175,11 @@ class IterativeRefinement:
 
             rots = IterativeRefinement.grid_SO3_uniform(self.n_rots)
             xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
-            xyz_rotated_padded = IterativeRefinement.pad_and_rotate_xy_planes(
-                xy0_plane, rots, n_pix
+            xyz_rotated = IterativeRefinement.rotate_xy_planes(
+                xy0_plane,
+                rots,
             )
-            xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
+            # xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
 
             slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
             slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
@@ -245,7 +246,7 @@ class IterativeRefinement:
                     ctf_1,
                     sigma_noise,
                     signal_var_1,
-                    xyz_rotated_padded,
+                    xyz_rotated,
                     xyz_voxels,
                     count_norm_const,
                 )
@@ -258,7 +259,7 @@ class IterativeRefinement:
                     ctf_2,
                     sigma_noise,
                     signal_var_2,
-                    xyz_rotated_padded,
+                    xyz_rotated,
                     xyz_voxels,
                     count_norm_const,
                 )
@@ -321,7 +322,7 @@ class IterativeRefinement:
         ctf,
         sigma_noise,
         signal_var,
-        xyz_rotated_padded,
+        xyz_rotated,
         xyz_voxels,
         count_norm_const,
     ):
@@ -349,10 +350,9 @@ class IterativeRefinement:
           Gaussian white noise std
         signal_var : float
             Signal variance
-        xyz_rotated_padded : arr
-            Rotated xy planes, padded on either side by z_offset.
-            TODO: refactor and change docs
-            Shape (n_rotations, 3, 3 * n_pix**2)
+        xyz_rotated : arr
+            Rotated xy planes
+            Shape (n_rotations, 3, n_pix**2)
         xyz_voxels : arr
             Array describing xyz cube in space.
             Shape (3, n_pix**3)
@@ -384,11 +384,8 @@ class IterativeRefinement:
         )
 
         logging.info("Inserting slices")
-        n_pix = particle_f.shape[0]
         for one_slice_idx in range(likelihoods.shape[0]):
-            xyz_planes = xyz_rotated_padded[one_slice_idx][
-                :, n_pix ** 2 : 2 * n_pix ** 2
-            ]
+            xyz_planes = xyz_rotated[one_slice_idx]
             inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
                 particle_f_deconv.real, xyz_planes, xyz_voxels
             )
@@ -668,7 +665,7 @@ class IterativeRefinement:
         return slices
 
     @staticmethod
-    def pad_and_rotate_xy_planes(xy_plane, rots, n_pix, z_offset=0.05):
+    def rotate_xy_planes(xy_plane, rots):
         """Rotate xy planes after padding them in z symmetrically by z_offset.
 
         Parameters
@@ -693,21 +690,21 @@ class IterativeRefinement:
         -------
         xyz_rotated : arr
             Rotated xy planes, padded on either side by z_offset.
-            Shape (n_rotations, 3, 3 * n_pix**2)
+            Shape (n_rotations, 3, n_pix**2)
         """
-        n_rotations = len(rots)
-        offset = np.array(
-            [
-                [0, 0, z_offset],
-            ]
-        ).T
-        xy_plane_padded = np.concatenate(
-            (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
-        )
-        xyz_rotated_padded = np.empty((n_rotations, 3, 3 * n_pix ** 2))
-        for i in range(n_rotations):
-            xyz_rotated_padded[i] = rots[i] @ xy_plane_padded
-        return xyz_rotated_padded
+        # n_rotations = len(rots)
+        # offset = np.array(
+        #     [
+        #         [0, 0, z_offset],
+        #     ]
+        # ).T
+        # xy_plane_padded = np.concatenate(
+        #     (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
+        # )
+        # xyz_rotated_padded = np.empty((n_rotations, 3, n_pix ** 2))
+        # for i in range(n_rotations):
+        xyz_rotated = rots.dot(xy_plane)
+        return xyz_rotated
 
     @staticmethod
     def insert_slice(slice_real, xy_rotated, xyz, method="trilinear"):
