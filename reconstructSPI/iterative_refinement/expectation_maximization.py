@@ -157,118 +157,148 @@ class IterativeRefinement:
         for iteration in range(self.max_itr):
             logging.info(f"Iteration{iteration}")
 
-            half_map_3d_f_1 = (
-                primal_to_fourier_3D(
-                    torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
-                )
-                .numpy()
-                .reshape(map_shape)
-            )
-
-            half_map_3d_f_2 = (
-                primal_to_fourier_3D(
-                    torch.from_numpy(half_map_3d_r_2.reshape(batch_map_shape))
-                )
-                .numpy()
-                .reshape(map_shape)
-            )
-
             rots = IterativeRefinement.grid_SO3_uniform(self.n_rots)
+            # optimize estimate in em iterations
+            sigma_noise = self.sigma_noise
 
-            xyz_rotated = IterativeRefinement.rotate_xy_planes(
-                xy0_plane,
+            def em_one_iteration(
+                self,
+                half_map_3d_r_1,
+                half_map_3d_r_2,
+                map_shape,
+                batch_map_shape,
                 rots,
-            )
+                sigma_noise,
+            ):
 
-            slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
-            slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
+                half_map_3d_f_1 = (
+                    primal_to_fourier_3D(
+                        torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
+                    )
+                    .numpy()
+                    .reshape(map_shape)
+                )
 
-            signal_var_1 = slices_1.var(axis=(1, 2))
-            signal_var_2 = slices_2.var(axis=(1, 2))
+                half_map_3d_f_2 = (
+                    primal_to_fourier_3D(
+                        torch.from_numpy(half_map_3d_r_2.reshape(batch_map_shape))
+                    )
+                    .numpy()
+                    .reshape(map_shape)
+                )
 
-            map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
-            map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
-            counts_3d_updated_1 = np.zeros(map_shape)
-            counts_3d_updated_2 = np.zeros(map_shape)
+                xyz_rotated = IterativeRefinement.rotate_xy_planes(
+                    xy0_plane,
+                    rots,
+                )
 
-            em_loss_batch_1, em_loss_batch_2 = 0.0, 0.0
-            for particle_idx in range(particles_f_1.shape[0]):
+                slices_1 = IterativeRefinement.generate_slices(
+                    half_map_3d_f_1, xyz_rotated
+                )
+                slices_2 = IterativeRefinement.generate_slices(
+                    half_map_3d_f_2, xyz_rotated
+                )
 
-                # forward model
-                logging.info(f"Particle {particle_idx}")
-                ctf_1 = ctfs_1[particle_idx]
-                ctf_2 = ctfs_2[particle_idx]
+                signal_var_1 = slices_1.var(axis=(1, 2))
+                signal_var_2 = slices_2.var(axis=(1, 2))
 
-                ctf_vectorized = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
+                map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
+                map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
+                counts_3d_updated_1 = np.zeros(map_shape)
+                counts_3d_updated_2 = np.zeros(map_shape)
 
-                slices_conv_ctfs_1 = ctf_vectorized(slices_1, ctf_1)
-                slices_conv_ctfs_2 = ctf_vectorized(slices_2, ctf_2)
+                em_loss_batch_1, em_loss_batch_2 = 0.0, 0.0
+                for particle_idx in range(particles_f_1.shape[0]):
 
-                # optimize estimate in em iterations
-                sigma_noise = self.sigma_noise
+                    # forward model
+                    logging.info(f"Particle {particle_idx}")
+                    ctf_1 = ctfs_1[particle_idx]
+                    ctf_2 = ctfs_2[particle_idx]
 
+                    ctf_vectorized = np.vectorize(
+                        IterativeRefinement.apply_ctf_to_slice
+                    )  # TODO: move?
+
+                    slices_conv_ctfs_1 = ctf_vectorized(slices_1, ctf_1)
+                    slices_conv_ctfs_2 = ctf_vectorized(slices_2, ctf_2)
+
+                    (
+                        likelihoods_1,
+                        z_norm_const_1,
+                        em_loss_1,
+                    ) = IterativeRefinement.expectation(
+                        observation_f=particles_f_1[particle_idx],
+                        simulations_f=slices_conv_ctfs_1,
+                        sigma_noise=sigma_noise,
+                    )
+
+                    em_loss_batch_1 += em_loss_1
+                    logging.info(
+                        f"log z_norm_const_1={z_norm_const_1}, em_loss_1={em_loss_1}"
+                    )
+
+                    (
+                        likelihoods_2,
+                        z_norm_const_2,
+                        em_loss_2,
+                    ) = IterativeRefinement.expectation(
+                        observation_f=particles_f_2[particle_idx],
+                        simulations_f=slices_conv_ctfs_2,
+                        sigma_noise=sigma_noise,
+                    )
+
+                    em_loss_batch_2 += em_loss_2
+                    logging.info(
+                        f"log z_norm_const_2={z_norm_const_2}, em_loss_2={em_loss_2}"
+                    )
+
+                    (map_3d_f_norm_1, _, _, _, _,) = self.maximization(
+                        map_3d_f_updated_1,
+                        counts_3d_updated_1,
+                        likelihoods_1,
+                        particles_f_1,
+                        ctf_1,
+                        sigma_noise,
+                        signal_var_1,
+                        xyz_rotated,
+                        xyz_voxels,
+                        count_norm_const,
+                    )
+
+                    (map_3d_f_norm_2, _, _, _, _,) = self.maximization(
+                        map_3d_f_updated_2,
+                        counts_3d_updated_2,
+                        likelihoods_2,
+                        particles_f_2,
+                        ctf_2,
+                        sigma_noise,
+                        signal_var_2,
+                        xyz_rotated,
+                        xyz_voxels,
+                        count_norm_const,
+                    )
+
+                logging.info(f"EM Loss #1: {em_loss_1}")
+                logging.info(f"EM Loss #2: {em_loss_2}")
+
+                logging.info("Applying noise model")
                 (
-                    likelihoods_1,
-                    z_norm_const_1,
-                    em_loss_1,
-                ) = IterativeRefinement.expectation(
-                    observation_f=particles_f_1[particle_idx],
-                    simulations_f=slices_conv_ctfs_1,
-                    sigma_noise=sigma_noise,
+                    half_map_3d_f_1,
+                    half_map_3d_f_2,
+                ) = IterativeRefinement.apply_noise_model(
+                    map_3d_f_norm_1, map_3d_f_norm_2
                 )
 
-                em_loss_batch_1 += em_loss_1
-                logging.info(
-                    f"log z_norm_const_1={z_norm_const_1}, em_loss_1={em_loss_1}"
-                )
+                return half_map_3d_f_1, half_map_3d_f_2
 
-                (
-                    likelihoods_2,
-                    z_norm_const_2,
-                    em_loss_2,
-                ) = IterativeRefinement.expectation(
-                    observation_f=particles_f_2[particle_idx],
-                    simulations_f=slices_conv_ctfs_2,
-                    sigma_noise=sigma_noise,
-                )
-
-                em_loss_batch_2 += em_loss_2
-                logging.info(
-                    f"log z_norm_const_2={z_norm_const_2}, em_loss_2={em_loss_2}"
-                )
-
-                (map_3d_f_norm_1, _, _, _, _,) = self.maximization(
-                    map_3d_f_updated_1,
-                    counts_3d_updated_1,
-                    likelihoods_1,
-                    particles_f_1,
-                    ctf_1,
-                    sigma_noise,
-                    signal_var_1,
-                    xyz_rotated,
-                    xyz_voxels,
-                    count_norm_const,
-                )
-
-                (map_3d_f_norm_2, _, _, _, _,) = self.maximization(
-                    map_3d_f_updated_2,
-                    counts_3d_updated_2,
-                    likelihoods_2,
-                    particles_f_2,
-                    ctf_2,
-                    sigma_noise,
-                    signal_var_2,
-                    xyz_rotated,
-                    xyz_voxels,
-                    count_norm_const,
-                )
-
-            logging.info(f"EM Loss #1: {em_loss_1}")
-            logging.info(f"EM Loss #2: {em_loss_2}")
-
-            logging.info("Applying noise model")
-            half_map_3d_f_1, half_map_3d_f_2 = IterativeRefinement.apply_noise_model(
-                map_3d_f_norm_1, map_3d_f_norm_2
+            half_map_3d_f_1, half_map_3d_f_2 = em_one_iteration(
+                self,
+                half_map_3d_r_1,
+                half_map_3d_r_2,
+                map_shape,
+                batch_map_shape,
+                rots,
+                sigma_noise,
             )
 
         fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
@@ -433,7 +463,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -575,7 +605,7 @@ class IterativeRefinement:
         if d == 2:
             grid = np.meshgrid(axis_pts, axis_pts)
 
-            xy_plane = np.zeros((3, n_pix**2))
+            xy_plane = np.zeros((3, n_pix ** 2))
 
             for di in range(2):
                 xy_plane[di, :] = grid[di].flatten()
@@ -584,7 +614,7 @@ class IterativeRefinement:
         if d == 3:
             grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
 
-            xyz = np.zeros((3, n_pix**3))
+            xyz = np.zeros((3, n_pix ** 3))
 
             for di in range(3):
                 xyz[di] = grid[di].flatten()
@@ -650,14 +680,16 @@ class IterativeRefinement:
         n_pix = len(map_3d_f)
         slices = np.empty((n_rotations, n_pix, n_pix), dtype=np.complex64)
         for i in range(n_rotations):
-            slices[i] = map_coordinates(
-                map_3d_f.real,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape((n_pix, n_pix)) + 1j * map_coordinates(
-                map_3d_f.imag,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape(
-                (n_pix, n_pix)
+            slices[i] = (
+                map_coordinates(
+                    map_3d_f.real,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
+                + 1j
+                * map_coordinates(
+                    map_3d_f.imag,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
             )
         return slices
 
@@ -804,7 +836,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma_noise**2) ** -1)
+        scale = -((2 * sigma_noise ** 2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -924,7 +956,7 @@ class IterativeRefinement:
         http://doi.org/10.1016/j.jsb.2011.06.010
         """
         if method == "white":
-            ssnr = signal_var / sigma_noise**2
+            ssnr = signal_var / sigma_noise ** 2
 
         elif method == "not_tested":
             n_pix = len(projections_f[0])
@@ -942,9 +974,9 @@ class IterativeRefinement:
                 mask = IterativeRefinement.binary_mask(
                     (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
                 )
-                ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
+                ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs ** 2, axis=0))
                 ctf_img_sq_sum[radius] = np.sum(
-                    mask * np.sum(ctfs**2 * np.abs(projections_f) ** 2, axis=0)
+                    mask * np.sum(ctfs ** 2 * np.abs(projections_f) ** 2, axis=0)
                 )
                 diff_sq_sum[radius] = np.sum(
                     mask
@@ -1044,15 +1076,15 @@ class IterativeRefinement:
             a, b, c = center
             nx0, nx1, nx2 = shape
             x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-            r2 = x0**2 + x1**2 + x2**2
+            r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
 
         elif d == 2:
             a, b = center
             nx0, nx1 = shape
             x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
-            r2 = x0**2 + x1**2
+            r2 = x0 ** 2 + x1 ** 2
 
-        mask = r2 <= radius**2
+        mask = r2 <= radius ** 2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
