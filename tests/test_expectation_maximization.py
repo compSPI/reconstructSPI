@@ -2,8 +2,6 @@
 
 import numpy as np
 import pytest
-import torch
-from compSPI.transforms import primal_to_fourier_2D
 
 from reconstructSPI.iterative_refinement import expectation_maximization as em
 
@@ -57,10 +55,17 @@ def test_ir(n_pix, n_particles, rand_defocus, rand_angle_list):
         },
     }
     map_3d = np.zeros((n_pix, n_pix, n_pix))
-    particles_noise = np.random.normal(np.zeros((n_particles, n_pix, n_pix)), scale=0.1)
+    sigma_noise_real = 0.1
+    particles_noise = np.random.normal(
+        np.zeros((n_particles, n_pix, n_pix)), scale=sigma_noise_real
+    )
 
-    itr = 2
-    ir = em.IterativeRefinement(map_3d, particles_noise, ctf_info, itr)
+    max_itr = 2
+    n_rotations = 10
+    sigma_noise_fourier = 1  # conversion to fourier?
+    ir = em.IterativeRefinement(
+        map_3d, particles_noise, ctf_info, max_itr, n_rotations, sigma_noise_fourier
+    )
     return ir
 
 
@@ -320,22 +325,9 @@ def test_insert_slice(test_ir, n_pix):
         slices[0],
         xyz_rotated[0],
         xyz_voxels,
-        method="trilinear",
     )
     assert inserted.shape == count.shape
     assert inserted.shape == (n_pix, n_pix, n_pix)
-
-    exceptionThrown = False
-    try:
-        inserted, count = test_ir.insert_slice(
-            slices[0],
-            xyz_rotated[0],
-            xyz_voxels,
-            method="not_implemented",
-        )
-    except ValueError:
-        exceptionThrown = True
-    assert exceptionThrown
 
 
 def test_insert_slice_v(test_ir, n_pix):
@@ -525,26 +517,10 @@ def test_compute_ssnr(test_ir, n_pix, n_particles):
     assert ssnr > 0
     assert isinstance(ssnr, float)
 
-    method = "not_tested"
-    particles_f = (
-        primal_to_fourier_2D(
-            torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
-        )
-        .numpy()
-        .reshape((n_particles, n_pix, n_pix))
-    )
-    ctfs = test_ir.build_ctf_array()
-    ssnr = test_ir.compute_ssnr(
-        method, projections_f=particles_f, ctfs=ctfs, small_number=0.01
-    )
-    assert ssnr.shape == (n_pix, n_pix)
-
     exceptionThrown = False
     try:
         ssnr = test_ir.compute_ssnr(
             method="not_implemented",
-            projections_f=particles_f,
-            ctfs=ctfs,
             small_number=0.01,
         )
     except ValueError:
@@ -554,14 +530,6 @@ def test_compute_ssnr(test_ir, n_pix, n_particles):
 
 def test_get_wiener_small_numbers(test_ir, n_pix, n_particles):
     """Test the shape of compute_wiener_small_numbers."""
-    particles_f = (
-        primal_to_fourier_2D(
-            torch.from_numpy(test_ir.particles.reshape((n_particles, 1, n_pix, n_pix)))
-        )
-        .numpy()
-        .reshape((n_particles, n_pix, n_pix))
-    )
-
     method = "white"
     signal_var_low = 0.1
     signal_var_hi = signal_var_low * 10
@@ -573,21 +541,13 @@ def test_get_wiener_small_numbers(test_ir, n_pix, n_particles):
     )
     assert 1 / ssnr_inv_hi > 1 / ssnr_inv_low
 
-    ctfs = test_ir.build_ctf_array()
-    method = "not_tested"
-    small_numbers = test_ir.get_wiener_small_numbers(
-        method, projections_f=particles_f, ctfs=ctfs, small_number=0.01
-    )
-    assert small_numbers.shape == (n_pix, n_pix)
-
     exceptionThrown = False
     try:
         small_numbers = test_ir.get_wiener_small_numbers(
             method="not_implemented",
-            projections_f=particles_f,
-            ctfs=ctfs,
             small_number=0.01,
         )
+        assert small_numbers.shape == (n_pix, n_pix)
     except ValueError:
         exceptionThrown = True
     assert exceptionThrown
@@ -657,6 +617,72 @@ def test_expectation(test_ir):
     assert isinstance(em_loss, float)
 
 
+def test_iterative_refinement_precompute(test_ir):
+    """Test iterative_refinement_precompute."""
+    (
+        particles_f_1,
+        particles_f_2,
+        ctfs_1,
+        ctfs_2,
+        half_map_3d_f_1,
+        half_map_3d_f_2,
+        map_shape,
+        xyz_voxels,
+        xy0_plane,
+    ) = test_ir.iterative_refinement_precompute()
+    n_particles_half = len(particles_f_1)
+    n_pix = map_shape[0]
+    for arr in [particles_f_1, particles_f_2, ctfs_1, ctfs_2]:
+        assert arr.shape == (n_particles_half, n_pix, n_pix)
+        assert len(arr) == n_particles_half
+    for complex_arr in [particles_f_1, particles_f_2, half_map_3d_f_1, half_map_3d_f_2]:
+        assert complex_arr.dtype == np.complex128
+    assert len(map_shape) == 3
+    assert xyz_voxels.shape == (3, n_pix**3)
+    assert xy0_plane.shape == (3, n_pix**2)
+
+
+def test_em_one_iteration(test_ir):
+    """Test em_one_iteration."""
+    (
+        particles_f_1,
+        particles_f_2,
+        ctfs_1,
+        ctfs_2,
+        half_map_3d_f_1,
+        half_map_3d_f_2,
+        map_shape,
+        xyz_voxels,
+        xy0_plane,
+    ) = test_ir.iterative_refinement_precompute()
+
+    n_rotations = 7
+    rotations = test_ir.grid_SO3_uniform(n_rotations)
+    xyz_rotated = test_ir.rotate_xy_planes(
+        xy0_plane,
+        rotations,
+    )
+    sigma_noise = 1.0
+    count_norm_const = 1.0
+    half_map_3d_f_1, half_map_3d_f_2 = test_ir.em_one_iteration(
+        xyz_rotated,
+        xyz_voxels,
+        ctfs_1,
+        ctfs_2,
+        particles_f_1,
+        particles_f_2,
+        half_map_3d_f_1,
+        half_map_3d_f_2,
+        map_shape,
+        sigma_noise,
+        count_norm_const,
+    )
+
+    for half_map in [half_map_3d_f_1, half_map_3d_f_2]:
+        assert half_map.dtype == np.complex128
+        assert half_map.shape == map_shape
+
+
 def test_iterative_refinement(test_ir, n_pix):
     """Test complete iterative refinement algorithm.
 
@@ -714,14 +740,16 @@ def test_iterative_refinement(test_ir, n_pix):
     # should have matching ctfs
     # can fourier downsample to make tests quick. see
 
-    itr = 4
+    max_itr = 4
+    n_rotations = 10
+    sigma_noise_fourier = 1.0
     (
         map_3d_r_final,
         half_map_3d_r_1,
         half_map_3d_r_2,
         fsc_1d,
     ) = em.IterativeRefinement(
-        map_3d, particles_noise, ctf_info, itr
+        map_3d, particles_noise, ctf_info, max_itr, n_rotations, sigma_noise_fourier
     ).iterative_refinement()
 
     assert map_3d_r_final.shape == (n_pix, n_pix, n_pix)
