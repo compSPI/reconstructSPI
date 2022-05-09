@@ -136,13 +136,13 @@ def test_generate_cartesian_grid(test_ir, n_pix):
     assert exceptionThrown
 
 
-def test_pad_and_rotate_xy_plane(test_ir, n_pix, n_particles):
-    """Test shape after padding and rotating xy plane."""
+def test_rotate_xy_plane(test_ir, n_pix, n_particles):
+    """Test shape after rotating xy plane."""
     n_rotations = n_particles
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     rots = test_ir.grid_SO3_uniform(n_rotations)
-    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
-    assert xyz_rotated_padded.shape == (n_rotations, 3, 3 * n_pix**2)
+    xyz_rotated = test_ir.rotate_xy_planes(xy_plane, rots)
+    assert xyz_rotated.shape == (n_rotations, 3, n_pix**2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -170,12 +170,11 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     map_3d = np.ones((n_pix, n_pix, n_pix))
     rots = test_ir.grid_SO3_uniform(n_particles)
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
-    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(xy_plane, rots, n_pix)
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = test_ir.rotate_xy_planes(xy_plane, rots)
     slices = test_ir.generate_slices(map_3d, xyz_rotated)
 
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated_padded.shape == (n_particles, 3, 3 * n_pix**2)
+    assert xyz_rotated.shape == (n_particles, 3, n_pix**2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
@@ -198,10 +197,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     expected_slice_line_y = np.zeros_like(slices[0])
     expected_slice_line_y[n_pix // 2] = 1
 
-    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
-        xy_plane, rot_90deg_about_y, n_pix
-    )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = test_ir.rotate_xy_planes(xy_plane, rot_90deg_about_y)
 
     slices = test_ir.generate_slices(map_plane_ones_xzplane, xyz_rotated)
     omit_idx_artefact = 1
@@ -219,10 +215,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     map_plane_ones_xyplane[:, :, n_pix // 2] = 1
     expected_slice = np.ones((n_pix, n_pix))
 
-    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
-        xy_plane, rot_180deg_about_z, n_pix
-    )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = test_ir.rotate_xy_planes(xy_plane, rot_180deg_about_z)
 
     slices = test_ir.generate_slices(map_plane_ones_xyplane, xyz_rotated)
     assert np.allclose(
@@ -319,35 +312,13 @@ def test_insert_slice(test_ir, n_pix):
         ]
     )
 
-    xyz_rotated_padded = test_ir.pad_and_rotate_xy_planes(
-        xy_plane, rot_90deg_about_y, n_pix
-    )
-
-    slices = test_ir.generate_slices(
-        map_plane_ones, xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
-    )
-
+    xyz_rotated = test_ir.rotate_xy_planes(xy_plane, rot_90deg_about_y)
+    slices = test_ir.generate_slices(map_plane_ones, xyz_rotated)
     xyz_voxels = test_ir.generate_cartesian_grid(n_pix, 3)
 
     inserted, count = test_ir.insert_slice(
         slices[0],
-        xyz_rotated_padded[0],
-        xyz_voxels,
-        method="griddata",
-    )
-    omit_idx_artefact = 1
-    assert np.allclose(
-        inserted[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
-        map_plane_ones[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
-    )
-    assert np.allclose(
-        count[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
-        map_plane_ones[omit_idx_artefact:, omit_idx_artefact:, omit_idx_artefact:],
-    )
-
-    inserted, count = test_ir.insert_slice(
-        slices[0],
-        xyz_rotated_padded[0],
+        xyz_rotated[0],
         xyz_voxels,
         method="trilinear",
     )
@@ -358,7 +329,7 @@ def test_insert_slice(test_ir, n_pix):
     try:
         inserted, count = test_ir.insert_slice(
             slices[0],
-            xyz_rotated_padded[0],
+            xyz_rotated[0],
             xyz_voxels,
             method="not_implemented",
         )
@@ -371,19 +342,10 @@ def test_insert_slice_v(test_ir, n_pix):
     """Test whether vectorized insert_slice produces the right shapes."""
     n_slices = 5
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
-    z_tol = np.array(
-        [
-            [0, 0, 0.05],
-        ]
-    ).T
-    xy_plane_tol = np.concatenate(
-        (xy_plane + z_tol, xy_plane, xy_plane - z_tol), axis=1
-    )
     test_slices = np.ones((n_slices, n_pix, n_pix))
-    xy_planes_tol = np.tile(np.expand_dims(xy_plane_tol, axis=0), (n_slices, 1, 1))
+    xy_planes = np.tile(np.expand_dims(xy_plane, axis=0), (n_slices, 1, 1))
     xyz = test_ir.generate_cartesian_grid(n_pix, 3)
-
-    inserts, counts = test_ir.insert_slice_v(test_slices, xy_planes_tol, xyz)
+    inserts, counts = test_ir.insert_slice_v(test_slices, xy_planes, xyz)
     assert inserts.shape == (n_slices, n_pix, n_pix, n_pix)
     assert counts.shape == (n_slices, n_pix, n_pix, n_pix)
 
@@ -649,9 +611,7 @@ def test_maximization(test_ir):
     signal_var = 1
     rots = em.IterativeRefinement.grid_SO3_uniform(n_slices)
     xy_plane = em.IterativeRefinement.generate_cartesian_grid(n_pix, 2)
-    xyz_rotated_padded = em.IterativeRefinement.pad_and_rotate_xy_planes(
-        xy_plane, rots, n_pix
-    )
+    xyz_rotated = em.IterativeRefinement.rotate_xy_planes(xy_plane, rots)
     xyz_voxels = em.IterativeRefinement.generate_cartesian_grid(n_pix, 3)
     count_norm_const = 1
 
@@ -669,7 +629,7 @@ def test_maximization(test_ir):
         ctf,
         sigma_noise,
         signal_var,
-        xyz_rotated_padded,
+        xyz_rotated,
         xyz_voxels,
         count_norm_const,
     )
@@ -745,10 +705,7 @@ def test_iterative_refinement(test_ir, n_pix):
 
     rots = em.IterativeRefinement.grid_SO3_uniform(n_particles)
     xy_plane = em.IterativeRefinement.generate_cartesian_grid(n_pix, 2)
-    xyz_rotated_padded = em.IterativeRefinement.pad_and_rotate_xy_planes(
-        xy_plane, rots, n_pix
-    )
-    xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
+    xyz_rotated = em.IterativeRefinement.rotate_xy_planes(xy_plane, rots)
     slices = em.IterativeRefinement.generate_slices(map_3d, xyz_rotated)
     particles = slices.real
     particles_noise = np.random.normal(particles, scale=0.1)

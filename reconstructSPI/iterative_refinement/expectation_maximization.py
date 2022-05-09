@@ -10,7 +10,6 @@ from compSPI.transforms import (
     primal_to_fourier_3D,
 )
 from geomstats.geometry import special_orthogonal
-from scipy.interpolate import griddata
 from scipy.ndimage import map_coordinates
 from simSPI.linear_simulator import ctf as ctf_module
 
@@ -126,7 +125,7 @@ class IterativeRefinement:
             .reshape((n_batch_2, n_pix, n_pix))
         )
 
-        n_rotations = n_batch_1 + n_batch_2
+        n_rotations = self.n_rots
         self.particles = self.particles[:n_rotations]
 
         half_map_3d_r_1, half_map_3d_r_2 = (
@@ -154,7 +153,7 @@ class IterativeRefinement:
         )
 
         xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
-
+        xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
         for iteration in range(self.max_itr):
             logging.info(f"Iteration{iteration}")
 
@@ -175,11 +174,11 @@ class IterativeRefinement:
             )
 
             rots = IterativeRefinement.grid_SO3_uniform(self.n_rots)
-            xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
-            xyz_rotated_padded = IterativeRefinement.pad_and_rotate_xy_planes(
-                xy0_plane, rots, n_pix
+
+            xyz_rotated = IterativeRefinement.rotate_xy_planes(
+                xy0_plane,
+                rots,
             )
-            xyz_rotated = xyz_rotated_padded[:, :, n_pix**2 : 2 * n_pix**2]
 
             slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
             slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
@@ -246,7 +245,7 @@ class IterativeRefinement:
                     ctf_1,
                     sigma_noise,
                     signal_var_1,
-                    xyz_rotated_padded,
+                    xyz_rotated,
                     xyz_voxels,
                     count_norm_const,
                 )
@@ -259,7 +258,7 @@ class IterativeRefinement:
                     ctf_2,
                     sigma_noise,
                     signal_var_2,
-                    xyz_rotated_padded,
+                    xyz_rotated,
                     xyz_voxels,
                     count_norm_const,
                 )
@@ -322,7 +321,7 @@ class IterativeRefinement:
         ctf,
         sigma_noise,
         signal_var,
-        xyz_rotated_padded,
+        xyz_rotated,
         xyz_voxels,
         count_norm_const,
     ):
@@ -350,10 +349,9 @@ class IterativeRefinement:
           Gaussian white noise std
         signal_var : float
             Signal variance
-        xyz_rotated_padded : arr
-            Rotated xy planes, padded on either side by z_offset.
-            TODO: refactor and change docs
-            Shape (n_rotations, 3, 3 * n_pix**2)
+        xyz_rotated : arr
+            Rotated xy planes
+            Shape (n_rotations, 3, n_pix**2)
         xyz_voxels : arr
             Array describing xyz cube in space.
             Shape (3, n_pix**3)
@@ -386,7 +384,7 @@ class IterativeRefinement:
 
         logging.info("Inserting slices")
         for one_slice_idx in range(likelihoods.shape[0]):
-            xyz_planes = xyz_rotated_padded[one_slice_idx]
+            xyz_planes = xyz_rotated[one_slice_idx]
             inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
                 particle_f_deconv.real, xyz_planes, xyz_voxels
             )
@@ -664,7 +662,7 @@ class IterativeRefinement:
         return slices
 
     @staticmethod
-    def pad_and_rotate_xy_planes(xy_plane, rots, n_pix, z_offset=0.05):
+    def rotate_xy_planes(xy_plane, rots):
         """Rotate xy planes after padding them in z symmetrically by z_offset.
 
         Parameters
@@ -679,31 +677,15 @@ class IterativeRefinement:
         rots : arr
             Array describing rotations.
             Shape (n_rotations, n_pix**2, 3)
-        n_pix : int
-            Number of pixels per axis.
-        z_offset : float
-            Symmetrical z-depth given to the xy_plane before rotating.
-            0 < z_offset < 1
 
         Returns
         -------
         xyz_rotated : arr
             Rotated xy planes, padded on either side by z_offset.
-            Shape (n_rotations, 3, 3 * n_pix**2)
+            Shape (n_rotations, 3, n_pix**2)
         """
-        n_rotations = len(rots)
-        offset = np.array(
-            [
-                [0, 0, z_offset],
-            ]
-        ).T
-        xy_plane_padded = np.concatenate(
-            (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
-        )
-        xyz_rotated_padded = np.empty((n_rotations, 3, 3 * n_pix**2))
-        for i in range(n_rotations):
-            xyz_rotated_padded[i] = rots[i] @ xy_plane_padded
-        return xyz_rotated_padded
+        xyz_rotated = rots.dot(xy_plane)
+        return xyz_rotated
 
     @staticmethod
     def insert_slice(slice_real, xy_rotated, xyz, method="trilinear"):
@@ -719,7 +701,7 @@ class IterativeRefinement:
         slice_real : float64 arr
             Shape (n_pix, n_pix) the slice of interest.
         xy_rotated : arr
-            Shape (3, 3*n_pix**2) nonzero-depth "plane" of rotated slice coords.
+            Shape (3, n_pix**2) plane of rotated slice coords.
         xyz : arr
             Shape (3, n_pix**3) voxels of 3D map.
 
@@ -734,29 +716,13 @@ class IterativeRefinement:
         """
         n_pix = slice_real.shape[0]
         if method == "trilinear":
-            xyz_rotated_single = xy_rotated[:, n_pix**2 : 2 * n_pix**2]
-            r0, r1, dd = interpolate.diff(xyz_rotated_single)
+            r0, r1, dd = interpolate.diff(xy_rotated)
             map_3d_interp_slice, count_3d_interp_slice = interpolate.interp_vec(
                 slice_real, r0, r1, dd, n_pix
             )
             inserted_slice_3d = map_3d_interp_slice.reshape((n_pix, n_pix, n_pix))
             count_3d = count_3d_interp_slice.reshape((n_pix, n_pix, n_pix))
 
-        elif method == "griddata":
-
-            slice_values = np.tile(slice_real.reshape((n_pix**2,)), (3,))
-
-            inserted_slice_3d = griddata(
-                xy_rotated.T, slice_values, xyz.T, fill_value=0, method="linear"
-            ).reshape((n_pix, n_pix, n_pix))
-
-            count_3d = griddata(
-                xy_rotated.T,
-                np.ones_like(slice_values),
-                xyz.T,
-                fill_value=0,
-                method="linear",
-            ).reshape((n_pix, n_pix, n_pix))
         else:
             raise ValueError("Method {method} not implemented")
 
@@ -770,7 +736,7 @@ class IterativeRefinement:
         slices_real : float64 arr
             Shape (n_slices, n_pix, n_pix) the slices of interest.
         xy_rots : arr
-            Shape (n_slices, 3, 3*n_pix**2) nonzero-depth "planes" of rotated
+            Shape (n_slices, 3, n_pix**2) nonzero-depth "planes" of rotated
             slice coords.
         xyz : arr
             Shape (3, n_pix**3) voxels of 3D volume.
