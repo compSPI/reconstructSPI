@@ -10,7 +10,6 @@ from compSPI.transforms import (
     primal_to_fourier_3D,
 )
 from geomstats.geometry import special_orthogonal
-from scipy.interpolate import griddata
 from scipy.ndimage import map_coordinates
 from simSPI.linear_simulator import ctf as ctf_module
 
@@ -385,8 +384,11 @@ class IterativeRefinement:
         )
 
         logging.info("Inserting slices")
+        n_pix = particle_f.shape[0]
         for one_slice_idx in range(likelihoods.shape[0]):
-            xyz_planes = xyz_rotated_padded[one_slice_idx]
+            xyz_planes = xyz_rotated_padded[one_slice_idx][
+                :, n_pix ** 2 : 2 * n_pix ** 2
+            ]
             inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
                 particle_f_deconv.real, xyz_planes, xyz_voxels
             )
@@ -721,7 +723,7 @@ class IterativeRefinement:
         slice_real : float64 arr
             Shape (n_pix, n_pix) the slice of interest.
         xy_rotated : arr
-            Shape (3, 3*n_pix**2) nonzero-depth "plane" of rotated slice coords.
+            Shape (3*n_pix**2,) plane of rotated slice coords.
         xyz : arr
             Shape (3, n_pix**3) voxels of 3D map.
 
@@ -736,29 +738,13 @@ class IterativeRefinement:
         """
         n_pix = slice_real.shape[0]
         if method == "trilinear":
-            xyz_rotated_single = xy_rotated[:, n_pix ** 2 : 2 * n_pix ** 2]
-            r0, r1, dd = interpolate.diff(xyz_rotated_single)
+            r0, r1, dd = interpolate.diff(xy_rotated)
             map_3d_interp_slice, count_3d_interp_slice = interpolate.interp_vec(
                 slice_real, r0, r1, dd, n_pix
             )
             inserted_slice_3d = map_3d_interp_slice.reshape((n_pix, n_pix, n_pix))
             count_3d = count_3d_interp_slice.reshape((n_pix, n_pix, n_pix))
 
-        elif method == "griddata":
-
-            slice_values = np.tile(slice_real.reshape((n_pix ** 2,)), (3,))
-
-            inserted_slice_3d = griddata(
-                xy_rotated.T, slice_values, xyz.T, fill_value=0, method="linear"
-            ).reshape((n_pix, n_pix, n_pix))
-
-            count_3d = griddata(
-                xy_rotated.T,
-                np.ones_like(slice_values),
-                xyz.T,
-                fill_value=0,
-                method="linear",
-            ).reshape((n_pix, n_pix, n_pix))
         else:
             raise ValueError("Method {method} not implemented")
 
