@@ -629,14 +629,55 @@ def test_iterative_refinement_precompute(test_ir):
     for arr in [particles_f_1, particles_f_2, ctfs_1, ctfs_2]:
         assert arr.shape == (n_particles_half, n_pix, n_pix)
         assert len(arr) == n_particles_half
-    for complex_arr in [particles_f_1, particles_f_2]:
+    for complex_arr in [particles_f_1, particles_f_2, half_map_3d_f_1, half_map_3d_f_2]:
         assert complex_arr.dtype == np.complex128
-    for complex_arr in [half_map_3d_f_1, half_map_3d_f_2]:
-        assert complex_arr.dtype == np.complex64
     assert len(batch_map_shape) == 4
     assert len(map_shape) == 3
 
     assert xyz_voxels.shape == (3, n_pix ** 3)
+
+
+def test_em_one_iteration(test_ir):
+    """Test em_one_iteration."""
+    (
+        particles_f_1,
+        particles_f_2,
+        ctfs_1,
+        ctfs_2,
+        half_map_3d_f_1,
+        half_map_3d_f_2,
+        batch_map_shape,
+        map_shape,
+        xyz_voxels,
+        xy0_plane,
+    ) = test_ir.iterative_refinement_precompute()
+
+    n_rotations = 7
+    rotations = test_ir.grid_SO3_uniform(n_rotations)
+    xyz_rotated = test_ir.rotate_xy_planes(
+        xy0_plane,
+        rotations,
+    )
+    sigma_noise = 1.0
+    count_norm_const = 1.0
+    half_map_3d_f_1, half_map_3d_f_2 = test_ir.em_one_iteration(
+        xyz_rotated,
+        xyz_voxels,
+        ctfs_1,
+        ctfs_2,
+        particles_f_1,
+        particles_f_2,
+        half_map_3d_f_1,
+        half_map_3d_f_2,
+        map_shape,
+        batch_map_shape,
+        sigma_noise,
+        count_norm_const,
+    )
+
+    for half_map in [half_map_3d_f_1, half_map_3d_f_2]:
+        assert half_map.dtype == np.complex128
+        assert half_map.shape == map_shape
 
 
 def test_iterative_refinement(test_ir, n_pix):
