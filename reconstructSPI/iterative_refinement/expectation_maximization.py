@@ -322,7 +322,7 @@ class IterativeRefinement:
         See return of compute_likelihoods
 
         """
-        (likelihoods, z_norm_const, em_loss,) = IterativeRefinement.compute_likelihoods(
+        (likelihoods, z_norm_const, em_loss) = IterativeRefinement.compute_likelihoods(
             observation_f, simulations_f, sigma_noise
         )
         return likelihoods, z_norm_const, em_loss
