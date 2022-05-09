@@ -56,9 +56,9 @@ class IterativeRefinement:
         map_3d_init,
         particles,
         ctf_info,
-        max_itr=3,  # TODO: remove
-        n_rotations=10,  # TODO: remove
-        sigma_noise=1,
+        max_itr,  # TODO: remove
+        n_rotations,  # TODO: remove
+        sigma_noise,
     ):
         self.map_3d_init = map_3d_init
         self.particles = particles
@@ -108,7 +108,6 @@ class IterativeRefinement:
             ctfs_2,
             half_map_3d_f_1,
             half_map_3d_f_2,
-            batch_map_shape,
             map_shape,
             xyz_voxels,
             xy0_plane,
@@ -135,7 +134,6 @@ class IterativeRefinement:
                 half_map_3d_f_1,
                 half_map_3d_f_2,
                 map_shape,
-                batch_map_shape,
                 sigma_noise,
                 count_norm_const,
             )
@@ -172,7 +170,7 @@ class IterativeRefinement:
         half_map_3d_f_1,half_map_3d_f_2 : complex array
             Shape (n_pix,n_pix,n_pix)
             Half maps
-        map_shap, batch_map_shape : tuple
+        map_shape : tuple
             tuple for reshaping during FFT
         xyz_voxels : array
             Array describing xyz cube in space.
@@ -241,7 +239,6 @@ class IterativeRefinement:
             ctfs_2,
             half_map_3d_f_1,
             half_map_3d_f_2,
-            batch_map_shape,
             map_shape,
             xyz_voxels,
             xy0_plane,
@@ -258,7 +255,6 @@ class IterativeRefinement:
         half_map_3d_f_1,
         half_map_3d_f_2,
         map_shape,
-        batch_map_shape,
         sigma_noise,
         count_norm_const,
     ):
@@ -280,7 +276,7 @@ class IterativeRefinement:
         half_map_3d_f_1,half_map_3d_f_2 : complex array
             Shape (n_pix,n_pix,n_pix)
             Half maps
-        map_shap, batch_map_shape : tuple
+        map_shape : tuple
             tuple for reshaping during FFT
         sigma_noise : float
           Gaussian white noise std
@@ -304,16 +300,12 @@ class IterativeRefinement:
         counts_3d_updated_2 = np.zeros(map_shape)
 
         em_loss_batch_1, em_loss_batch_2 = 0.0, 0.0
+        ctf_vectorized = np.vectorize(IterativeRefinement.apply_ctf_to_slice)
         for particle_idx in range(particles_f_1.shape[0]):
 
-            # forward model
-            logging.info(f"Particle {particle_idx}")
+            logging.info(f"Applying forward model to particle {particle_idx}")
             ctf_1 = ctfs_1[particle_idx]
             ctf_2 = ctfs_2[particle_idx]
-
-            ctf_vectorized = np.vectorize(
-                IterativeRefinement.apply_ctf_to_slice
-            )  # TODO: move?
 
             slices_conv_ctfs_1 = ctf_vectorized(slices_1, ctf_1)
             slices_conv_ctfs_2 = ctf_vectorized(slices_2, ctf_2)
@@ -522,7 +514,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -664,7 +656,7 @@ class IterativeRefinement:
         if d == 2:
             grid = np.meshgrid(axis_pts, axis_pts)
 
-            xy_plane = np.zeros((3, n_pix**2))
+            xy_plane = np.zeros((3, n_pix ** 2))
 
             for di in range(2):
                 xy_plane[di, :] = grid[di].flatten()
@@ -673,7 +665,7 @@ class IterativeRefinement:
         if d == 3:
             grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
 
-            xyz = np.zeros((3, n_pix**3))
+            xyz = np.zeros((3, n_pix ** 3))
 
             for di in range(3):
                 xyz[di] = grid[di].flatten()
@@ -739,14 +731,16 @@ class IterativeRefinement:
         n_pix = len(map_3d_f)
         slices = np.empty((n_rotations, n_pix, n_pix), dtype=np.complex64)
         for i in range(n_rotations):
-            slices[i] = map_coordinates(
-                map_3d_f.real,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape((n_pix, n_pix)) + 1j * map_coordinates(
-                map_3d_f.imag,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape(
-                (n_pix, n_pix)
+            slices[i] = (
+                map_coordinates(
+                    map_3d_f.real,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
+                + 1j
+                * map_coordinates(
+                    map_3d_f.imag,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
             )
         return slices
 
@@ -893,7 +887,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma_noise**2) ** -1)
+        scale = -((2 * sigma_noise ** 2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -1013,7 +1007,7 @@ class IterativeRefinement:
         http://doi.org/10.1016/j.jsb.2011.06.010
         """
         if method == "white":
-            ssnr = signal_var / sigma_noise**2
+            ssnr = signal_var / sigma_noise ** 2
 
         else:
             raise ValueError("Method {method} not implemented")
@@ -1102,15 +1096,15 @@ class IterativeRefinement:
             a, b, c = center
             nx0, nx1, nx2 = shape
             x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-            r2 = x0**2 + x1**2 + x2**2
+            r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
 
         elif d == 2:
             a, b = center
             nx0, nx1 = shape
             x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
-            r2 = x0**2 + x1**2
+            r2 = x0 ** 2 + x1 ** 2
 
-        mask = r2 <= radius**2
+        mask = r2 <= radius ** 2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
