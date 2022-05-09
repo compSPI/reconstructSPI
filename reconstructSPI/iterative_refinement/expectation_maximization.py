@@ -58,7 +58,6 @@ class IterativeRefinement:
         particles,
         ctf_info,
         max_itr=7,
-        signal_var=0.1,
         n_rots=7,
         sigma_noise=1,
     ):
@@ -66,7 +65,6 @@ class IterativeRefinement:
         self.particles = particles
         self.ctf_info = ctf_info
         self.max_itr = max_itr
-        # self.signal_var = signal_var
         self.n_rots = n_rots
         self.sigma_noise = sigma_noise
         self.insert_slice_vectorized = np.vectorize(
