@@ -101,6 +101,66 @@ class IterativeRefinement:
             Final one dimensional fourier shell correlation.
             Shape (n_pix // 2,)
         """
+        (
+            particles_f_1,
+            particles_f_2,
+            ctfs_1,
+            ctfs_2,
+            batch_map_shape,
+            map_shape,
+            half_map_3d_f_1,
+            half_map_3d_f_2,
+            xyz_voxels,
+            xy0_plane,
+        ) = self.iterative_refinement_precompute()
+
+        for iteration in range(self.max_itr):
+            logging.info(f"Iteration{iteration}")
+
+            rotations = IterativeRefinement.grid_SO3_uniform(self.n_rots)
+            xyz_rotated = IterativeRefinement.rotate_xy_planes(
+                xy0_plane,
+                rotations,
+            )
+            # optimize estimate in em iterations
+            sigma_noise = self.sigma_noise
+
+            half_map_3d_f_1, half_map_3d_f_2 = self.em_one_iteration(
+                xyz_rotated,
+                xyz_voxels,
+                ctfs_1,
+                ctfs_2,
+                particles_f_1,
+                particles_f_2,
+                half_map_3d_f_1,
+                half_map_3d_f_2,
+                map_shape,
+                batch_map_shape,
+                sigma_noise,
+                count_norm_const,
+            )
+
+        fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
+        fsc_3d = IterativeRefinement.expand_1d_to_nd(fsc_1d)
+
+        map_3d_f_final = ((half_map_3d_f_1 + half_map_3d_f_2) / 2) * fsc_3d
+        map_3d_f_final = torch.from_numpy(map_3d_f_final.reshape(map_shape))
+        map_3d_r_final = fourier_to_primal_3D(map_3d_f_final).numpy().reshape(map_shape)
+
+        half_map_3d_f_1 = torch.from_numpy(half_map_3d_f_1.reshape(map_shape))
+        half_map_3d_r_1 = (
+            fourier_to_primal_3D(half_map_3d_f_1).numpy().reshape(map_shape)
+        )
+
+        half_map_3d_f_2 = torch.from_numpy(half_map_3d_f_2.reshape(map_shape))
+        half_map_3d_r_2 = (
+            fourier_to_primal_3D(half_map_3d_f_2).numpy().reshape(map_shape)
+        )
+
+        return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
+
+    def iterative_refinement_precompute(self):
+        """Precompute for iterative refinement."""
         particles_1, particles_2 = IterativeRefinement.split_array(self.particles)
         n_pix = len(self.map_3d_init)
 
@@ -125,8 +185,7 @@ class IterativeRefinement:
             .reshape((n_batch_2, n_pix, n_pix))
         )
 
-        n_rotations = self.n_rots
-        self.particles = self.particles[:n_rotations]
+        self.particles = self.particles[: n_batch_1 + n_batch_2]
 
         half_map_3d_r_1, half_map_3d_r_2 = (
             self.map_3d_init.copy(),
@@ -154,72 +213,19 @@ class IterativeRefinement:
 
         xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
         xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
-        for iteration in range(self.max_itr):
-            logging.info(f"Iteration{iteration}")
 
-            rotations = IterativeRefinement.grid_SO3_uniform(self.n_rots)
-            xyz_rotated = IterativeRefinement.rotate_xy_planes(
-                xy0_plane,
-                rotations,
-            )
-            # optimize estimate in em iterations
-            sigma_noise = self.sigma_noise
-
-            half_map_3d_f_1, half_map_3d_f_2 = self.em_one_iteration(
-                xyz_rotated,
-                xyz_voxels,
-                ctfs_1,
-                ctfs_2,
-                particles_f_1,
-                particles_f_2,
-                half_map_3d_r_1,
-                half_map_3d_r_2,
-                map_shape,
-                batch_map_shape,
-                sigma_noise,
-                count_norm_const,
-            )
-
-        fsc_1d = IterativeRefinement.compute_fsc(half_map_3d_f_1, half_map_3d_f_2)
-        fsc_3d = IterativeRefinement.expand_1d_to_nd(fsc_1d)
-
-        map_3d_f_final = ((half_map_3d_f_1 + half_map_3d_f_2) / 2) * fsc_3d
-        map_3d_f_final = torch.from_numpy(map_3d_f_final.reshape(map_shape))
-        map_3d_r_final = (
-            fourier_to_primal_3D(map_3d_f_final).numpy().reshape((n_pix, n_pix, n_pix))
+        return (
+            particles_f_1,
+            particles_f_2,
+            ctfs_1,
+            ctfs_2,
+            batch_map_shape,
+            map_shape,
+            half_map_3d_f_1,
+            half_map_3d_f_2,
+            xyz_voxels,
+            xy0_plane,
         )
-
-        half_map_3d_f_1 = torch.from_numpy(half_map_3d_f_1.reshape(map_shape))
-        half_map_3d_r_1 = (
-            fourier_to_primal_3D(half_map_3d_f_1).numpy().reshape((n_pix, n_pix, n_pix))
-        )
-
-        half_map_3d_f_2 = torch.from_numpy(half_map_3d_f_2.reshape(map_shape))
-        half_map_3d_r_2 = (
-            fourier_to_primal_3D(half_map_3d_f_2).numpy().reshape((n_pix, n_pix, n_pix))
-        )
-
-        return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
-
-    @staticmethod
-    def expectation(observation_f, simulations_f, sigma_noise):
-        """Compute expected liklihood between observed and simulated 2D particles.
-
-        Wraps compute_likelihoods.
-
-        Parameters
-        ----------
-        See parameters of compute_likelihoods
-
-        Returns
-        -------
-        See return of compute_likelihoods
-
-        """
-        (likelihoods, z_norm_const, em_loss) = IterativeRefinement.compute_likelihoods(
-            observation_f, simulations_f, sigma_noise
-        )
-        return likelihoods, z_norm_const, em_loss
 
     def em_one_iteration(
         self,
@@ -229,8 +235,8 @@ class IterativeRefinement:
         ctfs_2,
         particles_f_1,
         particles_f_2,
-        half_map_3d_r_1,
-        half_map_3d_r_2,
+        half_map_3d_f_1,
+        half_map_3d_f_2,
         map_shape,
         batch_map_shape,
         sigma_noise,
@@ -251,7 +257,7 @@ class IterativeRefinement:
         ctfs_1,ctfs_2,particles_f_1,particles_f_2 : array
             Contrast transfer function or particle measurements in Fourier space
             Shape (n_particles,n_pix,n_pix)
-        half_map_3d_r_1,half_map_3d_r_2 : array
+        half_map_3d_f_1,half_map_3d_f_2 : complex array
             Shape (n_pix,n_pix,n_pix)
             Half maps
         map_shap, batch_map_shape : tuple
@@ -266,22 +272,6 @@ class IterativeRefinement:
         half_map_3d_r_1,half_map_3d_r_2 : See parameters
 
         """
-        half_map_3d_f_1 = (
-            primal_to_fourier_3D(
-                torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
-            )
-            .numpy()
-            .reshape(map_shape)
-        )
-
-        half_map_3d_f_2 = (
-            primal_to_fourier_3D(
-                torch.from_numpy(half_map_3d_r_2.reshape(batch_map_shape))
-            )
-            .numpy()
-            .reshape(map_shape)
-        )
-
         slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
         slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
 
@@ -370,6 +360,26 @@ class IterativeRefinement:
         ) = IterativeRefinement.apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2)
 
         return half_map_3d_f_1, half_map_3d_f_2
+
+    @staticmethod
+    def expectation(observation_f, simulations_f, sigma_noise):
+        """Compute expected liklihood between observed and simulated 2D particles.
+
+        Wraps compute_likelihoods.
+
+        Parameters
+        ----------
+        See parameters of compute_likelihoods
+
+        Returns
+        -------
+        See return of compute_likelihoods
+
+        """
+        (likelihoods, z_norm_const, em_loss) = IterativeRefinement.compute_likelihoods(
+            observation_f, simulations_f, sigma_noise
+        )
+        return likelihoods, z_norm_const, em_loss
 
     def maximization(
         self,
