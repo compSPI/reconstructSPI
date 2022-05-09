@@ -23,7 +23,7 @@ class IterativeRefinement:
     Parameters
     ----------
     map_3d_init : arr
-        Initial particle map.
+        Initial particle volume/map.
         Shape (n_pix, n_pix, n_pix)
     particles : arr
         Particles to be reconstructed.
@@ -66,7 +66,7 @@ class IterativeRefinement:
         self.particles = particles
         self.ctf_info = ctf_info
         self.max_itr = max_itr
-        self.signal_var = signal_var
+        # self.signal_var = signal_var
         self.n_rots = n_rots
         self.sigma_noise = sigma_noise
         self.insert_slice_vectorized = np.vectorize(
@@ -159,6 +159,7 @@ class IterativeRefinement:
 
         for iteration in range(self.max_itr):
             logging.info(f"Iteration{iteration}")
+
             half_map_3d_f_1 = (
                 primal_to_fourier_3D(
                     torch.from_numpy(half_map_3d_r_1.reshape(batch_map_shape))
@@ -190,13 +191,13 @@ class IterativeRefinement:
 
             map_3d_f_updated_1 = np.zeros_like(half_map_3d_f_1)
             map_3d_f_updated_2 = np.zeros_like(half_map_3d_f_2)
-            map_3d_f_norm_1 = np.zeros_like(half_map_3d_f_1)
-            map_3d_f_norm_2 = np.zeros_like(half_map_3d_f_2)
             counts_3d_updated_1 = np.zeros(map_shape)
             counts_3d_updated_2 = np.zeros(map_shape)
 
             em_loss_batch_1, em_loss_batch_2 = 0.0, 0.0
             for particle_idx in range(particles_f_1.shape[0]):
+
+                # forward model
                 logging.info(f"Particle {particle_idx}")
                 ctf_1 = ctfs_1[particle_idx]
                 ctf_2 = ctfs_2[particle_idx]
@@ -210,11 +211,13 @@ class IterativeRefinement:
                 sigma_noise = self.sigma_noise
 
                 (
-                    bayes_factors_1,
+                    likelihoods_1,
                     z_norm_const_1,
                     em_loss_1,
-                ) = IterativeRefinement.compute_bayesian_weights(
-                    particles_f_1[particle_idx], slices_conv_ctfs_1, sigma_noise
+                ) = IterativeRefinement.expectation(
+                    observation_f=particles_f_1[particle_idx],
+                    simulations_f=slices_conv_ctfs_1,
+                    sigma_noise=sigma_noise,
                 )
 
                 em_loss_batch_1 += em_loss_1
@@ -223,11 +226,13 @@ class IterativeRefinement:
                 )
 
                 (
-                    bayes_factors_2,
+                    likelihoods_2,
                     z_norm_const_2,
                     em_loss_2,
-                ) = IterativeRefinement.compute_bayesian_weights(
-                    particles_f_2[particle_idx], slices_conv_ctfs_2, sigma_noise
+                ) = IterativeRefinement.expectation(
+                    observation_f=particles_f_2[particle_idx],
+                    simulations_f=slices_conv_ctfs_2,
+                    sigma_noise=sigma_noise,
                 )
 
                 em_loss_batch_2 += em_loss_2
@@ -235,66 +240,48 @@ class IterativeRefinement:
                     f"log z_norm_const_2={z_norm_const_2}, em_loss_2={em_loss_2}"
                 )
 
-                wiener_small_numbers_1 = IterativeRefinement.get_wiener_small_numbers(
-                    method="white",
-                    sigma_noise=sigma_noise,
-                    signal_var=(signal_var_1 * bayes_factors_1).sum(),
-                )
-                wiener_small_numbers_2 = IterativeRefinement.get_wiener_small_numbers(
-                    method="white",
-                    sigma_noise=sigma_noise,
-                    signal_var=(signal_var_2 * bayes_factors_2).sum(),
+                (
+                    map_3d_f_norm_1,
+                    wiener_small_numbers_1,
+                    particle_f_deconv_1,
+                    map_3d_f_updated_1,
+                    counts_3d_updated_1,
+                ) = self.maximization(
+                    map_3d_f_updated_1,
+                    counts_3d_updated_1,
+                    likelihoods_1,
+                    particles_f_1,
+                    ctf_1,
+                    sigma_noise,
+                    signal_var_1,
+                    xyz_rotated_padded,
+                    xyz_voxels,
+                    count_norm_const,
                 )
 
-                particle_f_deconv_1 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_1, ctf_1, wiener_small_numbers_1
-                )
-                particle_f_deconv_2 = IterativeRefinement.apply_wiener_filter(
-                    particles_f_2, ctf_1, wiener_small_numbers_2
-                )
-
-                logging.info("Inserting slices")
-                for one_slice_idx in range(bayes_factors_1.shape[0]):
-                    xyz_planes = xyz_rotated_padded[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
-                        particle_f_deconv_1.real, xyz_planes, xyz_voxels
-                    )
-                    inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
-                        particle_f_deconv_1.imag, xyz_planes, xyz_voxels
-                    )
-                    map_3d_f_updated_1 += bayes_factors_1[one_slice_idx] * np.sum(
-                        inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
-                    )
-                    counts_3d_updated_1 += bayes_factors_1[one_slice_idx] * np.sum(
-                        count_3d_r + count_3d_i, axis=0
-                    ).astype(np.float32)
-
-                for one_slice_idx in range(bayes_factors_2.shape[0]):
-                    xyz_planes = xyz_rotated_padded[one_slice_idx]
-                    inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
-                        particle_f_deconv_2.real, xyz_planes, xyz_voxels
-                    )
-                    inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
-                        particle_f_deconv_2.imag, xyz_planes, xyz_voxels
-                    )
-                    map_3d_f_updated_2 += bayes_factors_2[one_slice_idx] * np.sum(
-                        inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
-                    )
-                    counts_3d_updated_2 += bayes_factors_2[one_slice_idx] * np.sum(
-                        count_3d_r + count_3d_i, axis=0
-                    ).astype(np.float32)
-
-                logging.info("Normalizing maps")
-                map_3d_f_norm_1 = IterativeRefinement.normalize_map(
-                    map_3d_f_updated_1, counts_3d_updated_1, count_norm_const
-                )
-                map_3d_f_norm_2 = IterativeRefinement.normalize_map(
-                    map_3d_f_updated_2, counts_3d_updated_2, count_norm_const
+                (
+                    map_3d_f_norm_2,
+                    wiener_small_numbers_2,
+                    particle_f_deconv_2,
+                    map_3d_f_updated_2,
+                    counts_3d_updated_2,
+                ) = self.maximization(
+                    map_3d_f_updated_2,
+                    counts_3d_updated_2,
+                    likelihoods_2,
+                    particles_f_2,
+                    ctf_2,
+                    sigma_noise,
+                    signal_var_2,
+                    xyz_rotated_padded,
+                    xyz_voxels,
+                    count_norm_const,
                 )
 
             logging.info(f"EM Loss #1: {em_loss_1}")
             logging.info(f"EM Loss #2: {em_loss_2}")
 
+            logging.info("Applying noise model")
             half_map_3d_f_1, half_map_3d_f_2 = IterativeRefinement.apply_noise_model(
                 map_3d_f_norm_1, map_3d_f_norm_2
             )
@@ -319,6 +306,126 @@ class IterativeRefinement:
         )
 
         return map_3d_r_final, half_map_3d_r_1, half_map_3d_r_2, fsc_1d
+
+    @staticmethod
+    def expectation(observation_f, simulations_f, sigma_noise):
+        """Compute expected liklihood between observed 2D particles and simulated 2D particles.
+
+        Wraps compute_likelihoods.
+
+        Parameters
+        ----------
+        See parameters of compute_likelihoods
+
+        Returns
+        -------
+        See return of compute_likelihoods
+
+        """
+        (likelihoods, z_norm_const, em_loss,) = IterativeRefinement.compute_likelihoods(
+            observation_f, simulations_f, sigma_noise
+        )
+        return likelihoods, z_norm_const, em_loss
+
+    def maximization(
+        self,
+        map_3d_f_updated,
+        counts_3d_updated,
+        likelihoods,
+        particle_f,
+        ctf,
+        sigma_noise,
+        signal_var,
+        xyz_rotated_padded,
+        xyz_voxels,
+        count_norm_const,
+    ):
+        """Maximize the expected 3D map corresponding to particles_f with likelihoods.
+
+        Deconvolves the CTF latent from the observed with  Wiener filter,
+        thereby computationally inverting point spred function of forward model.
+        Inserts slices in Fourier space, thereby inverting tomographic projection
+        of forward model in primal space
+
+        Parameters
+        ----------
+        map_3d_f_updated, counts_3d_updated : array
+            Fourier volume for slice insertion.
+            Insert (1) map values or (2) ones for post normalization, respectively
+                Accumulated over particles.
+            Shape (n_pix,n_pix,n_pix)
+        likelihoods : array
+            Bayesian weights for scaling inserted slices
+            Shape (n_slices,)
+        particle_f, ctf : array
+            Particles with corresponding ctfs
+            Shape ,n_pix,n_pix)
+        sigma_noise : float
+          Gaussian white noise std
+        signal_var : float
+            Signal variance
+        xyz_rotated_padded : arr
+            Rotated xy planes, padded on either side by z_offset.
+            TODO: refactor and change docs
+            Shape (n_rotations, 3, 3 * n_pix**2)
+        xyz_voxels : arr
+            Array describing xyz cube in space.
+            Shape (3, n_pix**3)
+        count_norm_const : float
+            Used to tune normalization of slice inserting.
+
+
+        Returns
+        -------
+        map_3d_f_norm : array
+            Shape (n_pix,n_pix,n_pix)
+            Normalized 3D map
+        wiener_small_numbers : float
+            Small numbers for wiener filtering.
+        particle_f_deconv : array
+            Shape (n_pix,n_pix)
+            Deconvoluted observed particle.
+        map_3d_f_updated, counts_3d_updated : see corresponding parameters
+
+        """
+        logging.info("Undoing CTF")
+        wiener_small_numbers = IterativeRefinement.get_wiener_small_numbers(
+            method="white",
+            sigma_noise=sigma_noise,
+            signal_var=(signal_var * likelihoods).sum(),
+        )
+        particle_f_deconv = IterativeRefinement.apply_wiener_filter(
+            particle_f, ctf, wiener_small_numbers
+        )
+
+        logging.info("Inserting slices")
+        for one_slice_idx in range(likelihoods.shape[0]):
+            xyz_planes = xyz_rotated_padded[one_slice_idx]
+            inserted_slice_3d_r, count_3d_r = self.insert_slice_v(
+                particle_f_deconv.real, xyz_planes, xyz_voxels
+            )
+            inserted_slice_3d_i, count_3d_i = self.insert_slice_v(
+                particle_f_deconv.imag, xyz_planes, xyz_voxels
+            )
+            map_3d_f_updated += likelihoods[one_slice_idx] * np.sum(
+                inserted_slice_3d_r + 1j * inserted_slice_3d_i, axis=0
+            )
+            counts_3d_updated += likelihoods[one_slice_idx] * np.sum(
+                count_3d_r + count_3d_i, axis=0
+            ).astype(np.float32)
+
+        logging.info("Normalizing maps")
+        map_3d_f_norm = IterativeRefinement.normalize_map(
+            map_3d_f_updated, counts_3d_updated, count_norm_const
+        )
+
+        return (
+            map_3d_f_norm,
+            wiener_small_numbers,
+            particle_f_deconv,
+            map_3d_f_updated,
+            counts_3d_updated,
+        )
 
     @staticmethod
     def normalize_map(map_3d, counts, norm_const):
@@ -682,7 +789,7 @@ class IterativeRefinement:
             Shape (n_slices, 3, 3*n_pix**2) nonzero-depth "planes" of rotated
             slice coords.
         xyz : arr
-            Shape (3, n_pix**3) voxels of 3D map.
+            Shape (3, n_pix**3) voxels of 3D volume.
 
         Returns
         -------
@@ -711,7 +818,7 @@ class IterativeRefinement:
         return projection_f_conv_ctf
 
     @staticmethod
-    def compute_bayesian_weights(particle, slices, sigma_noise):
+    def compute_likelihoods(particle, slices, sigma_noise):
         """Compute Bayesian weights of particle to slice.
 
         Assumes a Gaussian white noise model.
