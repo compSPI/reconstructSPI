@@ -179,7 +179,6 @@ class IterativeRefinement:
                 xy0_plane,
                 rots,
             )
-            # xyz_rotated = xyz_rotated_padded[:, :, n_pix ** 2 : 2 * n_pix ** 2]
 
             slices_1 = IterativeRefinement.generate_slices(half_map_3d_f_1, xyz_rotated)
             slices_2 = IterativeRefinement.generate_slices(half_map_3d_f_2, xyz_rotated)
@@ -680,11 +679,6 @@ class IterativeRefinement:
         rots : arr
             Array describing rotations.
             Shape (n_rotations, n_pix**2, 3)
-        n_pix : int
-            Number of pixels per axis.
-        z_offset : float
-            Symmetrical z-depth given to the xy_plane before rotating.
-            0 < z_offset < 1
 
         Returns
         -------
@@ -692,17 +686,6 @@ class IterativeRefinement:
             Rotated xy planes, padded on either side by z_offset.
             Shape (n_rotations, 3, n_pix**2)
         """
-        # n_rotations = len(rots)
-        # offset = np.array(
-        #     [
-        #         [0, 0, z_offset],
-        #     ]
-        # ).T
-        # xy_plane_padded = np.concatenate(
-        #     (xy_plane + offset, xy_plane, xy_plane - offset), axis=1
-        # )
-        # xyz_rotated_padded = np.empty((n_rotations, 3, n_pix ** 2))
-        # for i in range(n_rotations):
         xyz_rotated = rots.dot(xy_plane)
         return xyz_rotated
 
