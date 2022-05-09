@@ -125,7 +125,7 @@ class IterativeRefinement:
             .reshape((n_batch_2, n_pix, n_pix))
         )
 
-        n_rotations = n_batch_1 + n_batch_2
+        n_rotations = self.n_rots
         self.particles = self.particles[:n_rotations]
 
         half_map_3d_r_1, half_map_3d_r_2 = (
@@ -153,7 +153,7 @@ class IterativeRefinement:
         )
 
         xyz_voxels = IterativeRefinement.generate_cartesian_grid(n_pix, 3)
-
+        xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
         for iteration in range(self.max_itr):
             logging.info(f"Iteration{iteration}")
 
@@ -174,7 +174,7 @@ class IterativeRefinement:
             )
 
             rots = IterativeRefinement.grid_SO3_uniform(self.n_rots)
-            xy0_plane = IterativeRefinement.generate_cartesian_grid(n_pix, 2)
+
             xyz_rotated = IterativeRefinement.rotate_xy_planes(
                 xy0_plane,
                 rots,
@@ -433,7 +433,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -575,7 +575,7 @@ class IterativeRefinement:
         if d == 2:
             grid = np.meshgrid(axis_pts, axis_pts)
 
-            xy_plane = np.zeros((3, n_pix**2))
+            xy_plane = np.zeros((3, n_pix ** 2))
 
             for di in range(2):
                 xy_plane[di, :] = grid[di].flatten()
@@ -584,7 +584,7 @@ class IterativeRefinement:
         if d == 3:
             grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
 
-            xyz = np.zeros((3, n_pix**3))
+            xyz = np.zeros((3, n_pix ** 3))
 
             for di in range(3):
                 xyz[di] = grid[di].flatten()
@@ -650,14 +650,16 @@ class IterativeRefinement:
         n_pix = len(map_3d_f)
         slices = np.empty((n_rotations, n_pix, n_pix), dtype=np.complex64)
         for i in range(n_rotations):
-            slices[i] = map_coordinates(
-                map_3d_f.real,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape((n_pix, n_pix)) + 1j * map_coordinates(
-                map_3d_f.imag,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape(
-                (n_pix, n_pix)
+            slices[i] = (
+                map_coordinates(
+                    map_3d_f.real,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
+                + 1j
+                * map_coordinates(
+                    map_3d_f.imag,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
             )
         return slices
 
@@ -701,7 +703,7 @@ class IterativeRefinement:
         slice_real : float64 arr
             Shape (n_pix, n_pix) the slice of interest.
         xy_rotated : arr
-            Shape (3*n_pix**2,) plane of rotated slice coords.
+            Shape (3, n_pix**2) plane of rotated slice coords.
         xyz : arr
             Shape (3, n_pix**3) voxels of 3D map.
 
@@ -736,7 +738,7 @@ class IterativeRefinement:
         slices_real : float64 arr
             Shape (n_slices, n_pix, n_pix) the slices of interest.
         xy_rots : arr
-            Shape (n_slices, 3, 3*n_pix**2) nonzero-depth "planes" of rotated
+            Shape (n_slices, 3, n_pix**2) nonzero-depth "planes" of rotated
             slice coords.
         xyz : arr
             Shape (3, n_pix**3) voxels of 3D volume.
@@ -809,7 +811,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma_noise**2) ** -1)
+        scale = -((2 * sigma_noise ** 2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -929,7 +931,7 @@ class IterativeRefinement:
         http://doi.org/10.1016/j.jsb.2011.06.010
         """
         if method == "white":
-            ssnr = signal_var / sigma_noise**2
+            ssnr = signal_var / sigma_noise ** 2
 
         elif method == "not_tested":
             n_pix = len(projections_f[0])
@@ -947,9 +949,9 @@ class IterativeRefinement:
                 mask = IterativeRefinement.binary_mask(
                     (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
                 )
-                ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
+                ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs ** 2, axis=0))
                 ctf_img_sq_sum[radius] = np.sum(
-                    mask * np.sum(ctfs**2 * np.abs(projections_f) ** 2, axis=0)
+                    mask * np.sum(ctfs ** 2 * np.abs(projections_f) ** 2, axis=0)
                 )
                 diff_sq_sum[radius] = np.sum(
                     mask
@@ -1049,15 +1051,15 @@ class IterativeRefinement:
             a, b, c = center
             nx0, nx1, nx2 = shape
             x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-            r2 = x0**2 + x1**2 + x2**2
+            r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
 
         elif d == 2:
             a, b = center
             nx0, nx1 = shape
             x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
-            r2 = x0**2 + x1**2
+            r2 = x0 ** 2 + x1 ** 2
 
-        mask = r2 <= radius**2
+        mask = r2 <= radius ** 2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2

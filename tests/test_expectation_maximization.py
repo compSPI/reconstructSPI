@@ -101,7 +101,7 @@ def test_grid_SO3_uniform(test_ir, n_particles):
 def test_generate_cartesian_grid(test_ir, n_pix):
     """Test generation of xy plane and xyz cube."""
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
-    assert xy_plane.shape == (3, n_pix**2)
+    assert xy_plane.shape == (3, n_pix ** 2)
 
     n_pix_2 = 2
     plane_2 = np.array([[-1, 0, -1, 0], [-1, -1, 0, 0], [0, 0, 0, 0]])
@@ -112,7 +112,7 @@ def test_generate_cartesian_grid(test_ir, n_pix):
     assert np.isclose(xy_plane.min(), -n_pix_2 // 2)
 
     xyz_cube = test_ir.generate_cartesian_grid(n_pix, 3)
-    assert xyz_cube.shape == (3, n_pix**3)
+    assert xyz_cube.shape == (3, n_pix ** 3)
 
     n_pix_2 = 2
     cube_2 = np.array(
@@ -142,7 +142,7 @@ def test_rotate_xy_plane(test_ir, n_pix, n_particles):
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
     rots = test_ir.grid_SO3_uniform(n_rotations)
     xyz_rotated = test_ir.rotate_xy_planes(xy_plane, rots)
-    assert xyz_rotated.shape == (n_rotations, 3, n_pix**2)
+    assert xyz_rotated.shape == (n_rotations, 3, n_pix ** 2)
 
 
 def test_generate_slices(test_ir, n_particles, n_pix):
@@ -174,7 +174,7 @@ def test_generate_slices(test_ir, n_particles, n_pix):
     slices = test_ir.generate_slices(map_3d, xyz_rotated)
 
     assert slices.shape == (n_particles, n_pix, n_pix)
-    assert xyz_rotated.shape == (n_particles, 3, n_pix**2)
+    assert xyz_rotated.shape == (n_particles, 3, n_pix ** 2)
 
     map_3d_dc = np.zeros((n_pix, n_pix, n_pix))
     rand_val = np.random.uniform(low=1, high=2)
@@ -342,19 +342,10 @@ def test_insert_slice_v(test_ir, n_pix):
     """Test whether vectorized insert_slice produces the right shapes."""
     n_slices = 5
     xy_plane = test_ir.generate_cartesian_grid(n_pix, 2)
-    z_tol = np.array(
-        [
-            [0, 0, 0.05],
-        ]
-    ).T
-    xy_plane_tol = np.concatenate(
-        (xy_plane + z_tol, xy_plane, xy_plane - z_tol), axis=1
-    )
     test_slices = np.ones((n_slices, n_pix, n_pix))
-    xy_planes_tol = np.tile(np.expand_dims(xy_plane_tol, axis=0), (n_slices, 1, 1))
+    xy_planes = np.tile(np.expand_dims(xy_plane, axis=0), (n_slices, 1, 1))
     xyz = test_ir.generate_cartesian_grid(n_pix, 3)
-
-    inserts, counts = test_ir.insert_slice_v(test_slices, xy_planes_tol, xyz)
+    inserts, counts = test_ir.insert_slice_v(test_slices, xy_planes, xyz)
     assert inserts.shape == (n_slices, n_pix, n_pix, n_pix)
     assert counts.shape == (n_slices, n_pix, n_pix, n_pix)
 
