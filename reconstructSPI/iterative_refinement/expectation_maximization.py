@@ -522,7 +522,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts**2)
+        return map_3d * counts / (norm_const + counts ** 2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -664,7 +664,7 @@ class IterativeRefinement:
         if d == 2:
             grid = np.meshgrid(axis_pts, axis_pts)
 
-            xy_plane = np.zeros((3, n_pix**2))
+            xy_plane = np.zeros((3, n_pix ** 2))
 
             for di in range(2):
                 xy_plane[di, :] = grid[di].flatten()
@@ -673,7 +673,7 @@ class IterativeRefinement:
         if d == 3:
             grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
 
-            xyz = np.zeros((3, n_pix**3))
+            xyz = np.zeros((3, n_pix ** 3))
 
             for di in range(3):
                 xyz[di] = grid[di].flatten()
@@ -739,14 +739,16 @@ class IterativeRefinement:
         n_pix = len(map_3d_f)
         slices = np.empty((n_rotations, n_pix, n_pix), dtype=np.complex64)
         for i in range(n_rotations):
-            slices[i] = map_coordinates(
-                map_3d_f.real,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape((n_pix, n_pix)) + 1j * map_coordinates(
-                map_3d_f.imag,
-                xyz_rotated[i] + n_pix // 2,
-            ).reshape(
-                (n_pix, n_pix)
+            slices[i] = (
+                map_coordinates(
+                    map_3d_f.real,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
+                + 1j
+                * map_coordinates(
+                    map_3d_f.imag,
+                    xyz_rotated[i] + n_pix // 2,
+                ).reshape((n_pix, n_pix))
             )
         return slices
 
@@ -893,7 +895,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma_noise**2) ** -1)
+        scale = -((2 * sigma_noise ** 2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -1013,39 +1015,8 @@ class IterativeRefinement:
         http://doi.org/10.1016/j.jsb.2011.06.010
         """
         if method == "white":
-            ssnr = signal_var / sigma_noise**2
+            ssnr = signal_var / sigma_noise ** 2
 
-        elif method == "not_tested":
-            n_pix = len(projections_f[0])
-
-            signal_values = np.sum(ctfs * projections_f, axis=0) / np.sum(
-                ctfs * ctfs + small_number, axis=0
-            )
-
-            ctf_sq_sum = np.zeros(n_pix // 2)
-            ctf_img_sq_sum = np.zeros(n_pix // 2)
-            diff_sq_sum = np.zeros(n_pix // 2)
-            shell_pixels = np.zeros(n_pix // 2)
-
-            for radius in range(n_pix // 2):
-                mask = IterativeRefinement.binary_mask(
-                    (n_pix // 2, n_pix // 2), radius, projections_f[0].shape, 2
-                )
-                ctf_sq_sum[radius] = np.sum(mask * np.sum(ctfs**2, axis=0))
-                ctf_img_sq_sum[radius] = np.sum(
-                    mask * np.sum(ctfs**2 * np.abs(projections_f) ** 2, axis=0)
-                )
-                diff_sq_sum[radius] = np.sum(
-                    mask
-                    * np.sum(np.abs(projections_f - ctfs * signal_values) ** 2, axis=0)
-                )
-                shell_pixels[radius] = np.sum(mask)
-
-            sigma_rs_2 = ctf_img_sq_sum / ctf_sq_sum
-            sigma_rn_2 = diff_sq_sum / (shell_pixels * (len(projections_f) - 1))
-
-            ssnr_1d = (sigma_rs_2 / sigma_rn_2) - shell_pixels / ctf_sq_sum
-            ssnr = IterativeRefinement.expand_1d_to_nd(ssnr_1d, d=2)
         else:
             raise ValueError("Method {method} not implemented")
 
@@ -1133,15 +1104,15 @@ class IterativeRefinement:
             a, b, c = center
             nx0, nx1, nx2 = shape
             x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-            r2 = x0**2 + x1**2 + x2**2
+            r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
 
         elif d == 2:
             a, b = center
             nx0, nx1 = shape
             x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
-            r2 = x0**2 + x1**2
+            r2 = x0 ** 2 + x1 ** 2
 
-        mask = r2 <= radius**2
+        mask = r2 <= radius ** 2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
