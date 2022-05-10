@@ -44,6 +44,7 @@ def test_convert_angles_to_vectors():
         assert np.isclose(np.mean(vecs[:, 0]), 0.0)
         assert np.isclose(np.mean(vecs[:, 1]), 0.0)
         assert np.isclose(np.mean(vecs[:, 2]), 0.0)
+        assert vecs.shape[-1] == 3
 
 
 def test_uniform_sphere_grid():
