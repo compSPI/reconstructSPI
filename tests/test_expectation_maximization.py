@@ -2,6 +2,9 @@
 
 import numpy as np
 import pytest
+import torch
+from compSPI.transforms import fourier_to_primal_2D, primal_to_fourier_3D
+from scipy.ndimage import map_coordinates
 
 from reconstructSPI.iterative_refinement import expectation_maximization as em
 
@@ -227,6 +230,72 @@ def test_generate_slices(test_ir, n_particles, n_pix):
         slices[0, omit_idx_artefact:, omit_idx_artefact:],
         expected_slice[omit_idx_artefact:, omit_idx_artefact:],
     )
+
+
+def test_fourier_slice_theorem():
+    """Test generate_slices via Fourier slice theorem.
+
+    Tests real space and Fourier space correspondence of Fourier slice theorem.
+    """
+    n_pix = 64
+    map_shape = (n_pix, n_pix, n_pix)
+    map_rhombus_3d = np.zeros(map_shape)
+    map_rhombus_3d[
+        n_pix // 4 : n_pix // 2,
+        n_pix // 4 : -n_pix // 4,
+        n_pix // 2 - n_pix // 10 : -n_pix // 2 + n_pix // 10,
+    ] = 1.0
+    n_particles = 3
+    rotations = em.IterativeRefinement.grid_SO3_uniform(n_particles)
+    xy_plane = em.IterativeRefinement.generate_cartesian_grid(n_pix, 2)
+    xyz_rotated = em.IterativeRefinement.rotate_xy_planes(xy_plane, rotations)
+
+    batch_map_shape = (1,) + map_shape
+    map_3d_f = (
+        primal_to_fourier_3D(torch.from_numpy(map_rhombus_3d.reshape(batch_map_shape)))
+        .numpy()
+        .reshape(map_shape)
+    )
+    slices_f = em.IterativeRefinement.generate_slices(map_3d_f, xyz_rotated)
+    n_batch = n_particles
+
+    fourier_slice_particles_r = (
+        fourier_to_primal_2D(
+            torch.from_numpy(slices_f.reshape((n_batch, 1, n_pix, n_pix)))
+        )
+        .numpy()
+        .reshape((n_batch, n_pix, n_pix))
+    )
+
+    xyz_cube = em.IterativeRefinement.generate_cartesian_grid(n_pix, 3)
+    xyz_cube_rotated = em.IterativeRefinement.rotate_xy_planes(xyz_cube, rotations)
+
+    for idx in range(n_particles):
+        map_3d_rot_interp = map_coordinates(
+            map_rhombus_3d, xyz_cube_rotated[idx] + n_pix // 2
+        ).reshape(n_pix, n_pix, n_pix)
+        line_integral_proj = np.swapaxes(map_3d_rot_interp.sum(-1), 0, 1)
+        max_1, max_2 = (
+            line_integral_proj.max(),
+            fourier_slice_particles_r[idx].real.max(),
+        )
+        assert np.isclose(np.abs(max_1 - max_2) / max_1, 0, atol=0.1)
+
+        sum_1, sum_2 = (
+            line_integral_proj.sum(),
+            fourier_slice_particles_r[idx].real.sum(),
+        )
+        assert np.isclose(np.abs(sum_1 - sum_2) / sum_1, 0, atol=0.1)
+
+        norm_1, norm_2 = np.linalg.norm(line_integral_proj), np.linalg.norm(
+            fourier_slice_particles_r[idx].real
+        )
+        assert np.isclose(np.abs(norm_1 - norm_2) / norm_1, 0, atol=0.01)
+
+        atol_loose = line_integral_proj.max() * 0.1
+        assert np.allclose(
+            line_integral_proj, fourier_slice_particles_r[idx].real, atol=atol_loose
+        )
 
 
 def test_apply_ctf_to_slice(test_ir, n_pix):
@@ -729,9 +798,9 @@ def test_iterative_refinement(test_ir, n_pix):
         center, radius, shape, 3, fill=True, shell_thickness=1
     )
 
-    rots = em.IterativeRefinement.grid_SO3_uniform(n_particles)
+    rotations = em.IterativeRefinement.grid_SO3_uniform(n_particles)
     xy_plane = em.IterativeRefinement.generate_cartesian_grid(n_pix, 2)
-    xyz_rotated = em.IterativeRefinement.rotate_xy_planes(xy_plane, rots)
+    xyz_rotated = em.IterativeRefinement.rotate_xy_planes(xy_plane, rotations)
     slices = em.IterativeRefinement.generate_slices(map_3d, xyz_rotated)
     particles = slices.real
     particles_noise = np.random.normal(particles, scale=0.1)

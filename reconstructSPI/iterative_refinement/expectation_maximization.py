@@ -675,7 +675,7 @@ class IterativeRefinement:
         raise ValueError(f"Dimension {d} received was not 2 or 3.")
 
     @staticmethod
-    def generate_slices(map_3d_f, xyz_rotated):
+    def generate_slices(map_3d_f, xyz_rotated, **kwargs):
         """Generate slice coordinates via rotated xy plane.
 
         Interpolate values from map_3d_f onto 3D coordinates.
@@ -732,11 +732,9 @@ class IterativeRefinement:
         slices = np.empty((n_rotations, n_pix, n_pix), dtype=np.complex64)
         for i in range(n_rotations):
             slices[i] = map_coordinates(
-                map_3d_f.real,
-                xyz_rotated[i] + n_pix // 2,
+                map_3d_f.real, xyz_rotated[i] + n_pix // 2, **kwargs
             ).reshape((n_pix, n_pix)) + 1j * map_coordinates(
-                map_3d_f.imag,
-                xyz_rotated[i] + n_pix // 2,
+                map_3d_f.imag, xyz_rotated[i] + n_pix // 2, **kwargs
             ).reshape(
                 (n_pix, n_pix)
             )
