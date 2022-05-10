@@ -514,7 +514,7 @@ class IterativeRefinement:
             Shape (n_pix, n_pix, n_pix)
             map normalized by counts.
         """
-        return map_3d * counts / (norm_const + counts ** 2)
+        return map_3d * counts / (norm_const + counts**2)
 
     @staticmethod
     def apply_noise_model(map_3d_f_norm_1, map_3d_f_norm_2):
@@ -656,7 +656,7 @@ class IterativeRefinement:
         if d == 2:
             grid = np.meshgrid(axis_pts, axis_pts)
 
-            xy_plane = np.zeros((3, n_pix ** 2))
+            xy_plane = np.zeros((3, n_pix**2))
 
             for di in range(2):
                 xy_plane[di, :] = grid[di].flatten()
@@ -665,7 +665,7 @@ class IterativeRefinement:
         if d == 3:
             grid = np.meshgrid(axis_pts, axis_pts, axis_pts)
 
-            xyz = np.zeros((3, n_pix ** 3))
+            xyz = np.zeros((3, n_pix**3))
 
             for di in range(3):
                 xyz[di] = grid[di].flatten()
@@ -883,7 +883,7 @@ class IterativeRefinement:
         )
         slices_norm = np.linalg.norm(slices, axis=(1, 2)) ** 2
         particle_norm = np.linalg.norm(particle) ** 2
-        scale = -((2 * sigma_noise ** 2) ** -1)
+        scale = -((2 * sigma_noise**2) ** -1)
         log_bayesian_weights = scale * (slices_norm - 2 * corr_slices_particle)
         offset_safe = log_bayesian_weights.max()
         bayesian_weights = np.exp(log_bayesian_weights - offset_safe)
@@ -1003,7 +1003,7 @@ class IterativeRefinement:
         http://doi.org/10.1016/j.jsb.2011.06.010
         """
         if method == "white":
-            ssnr = signal_var / sigma_noise ** 2
+            ssnr = signal_var / sigma_noise**2
 
         else:
             raise ValueError("Method {method} not implemented")
@@ -1092,15 +1092,15 @@ class IterativeRefinement:
             a, b, c = center
             nx0, nx1, nx2 = shape
             x0, x1, x2 = np.ogrid[-a : nx0 - a, -b : nx1 - b, -c : nx2 - c]
-            r2 = x0 ** 2 + x1 ** 2 + x2 ** 2
+            r2 = x0**2 + x1**2 + x2**2
 
         elif d == 2:
             a, b = center
             nx0, nx1 = shape
             x0, x1 = np.ogrid[-a : nx0 - a, -b : nx1 - b]
-            r2 = x0 ** 2 + x1 ** 2
+            r2 = x0**2 + x1**2
 
-        mask = r2 <= radius ** 2
+        mask = r2 <= radius**2
         if not fill and radius - shell_thickness > 0:
             mask_outer = mask
             mask_inner = r2 <= (radius - shell_thickness) ** 2
